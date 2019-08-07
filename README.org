@@ -1,0 +1,12 @@
+* Simple Terminal PreViewer (STPV)
+  Preview as many possible kinds of files.
+
+  Needs ueberzug for image previews.
+
+** Installation
+   #+begin_src shell 
+  sudo make install
+   #+end_src
+
+** License
+   GPL3

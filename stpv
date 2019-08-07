@@ -1,0 +1,280 @@
+#!/bin/bash
+
+set -C -f -u
+IFS=$'\n'
+
+# ANSI color codes are supported.
+# STDIN is disabled, so interactive scripts won't work properly
+
+# This script is considered a configuration file and must be updated manually.
+
+# Meanings of exit codes:
+# code | meaning    | action of ranger
+# -----+------------+-------------------------------------------
+# 0    | success    | Display stdout as preview
+# 1    | no preview | Display no preview at all
+# 2    | plain text | Display the plain content of the file
+# 5    | image      | Do not display anything nor cache output
+
+PV_IMAGE_ENABLED="True"
+MAX_IMG_CACHE_SIZE=300kb
+MAX_IMG_CACHE_W=1920
+MAX_IMG_CACHE_H=1080
+
+usage() {
+    BIN=$(basename "$0")
+    >&2 echo -e "usage: $BIN FILE [ H W X Y ] [ ID ]\n" \
+        "      $BIN --clear ID"
+    exit 1
+}
+
+[ $# = 0 ] || [ "$1" = -h ] || [ "$1" = --help ] && usage
+
+if [ $# -eq 2 ] && [ "$1" = '--clear' ]; then
+    stpvimg --clear "$2"
+    exit
+fi
+
+FILE_PATH="$1"
+
+if [ $# -ge 5 ]; then
+    H="$2"; W="$3"; X="$4"; Y="$5"
+elif [ $# -eq 1 ]; then
+    COLS=$(($(tput cols) / 2))
+    LINS=$(($(tput lines) - 2))
+    X="$COLS"; Y="1"; W="$COLS"; H="$LINS"
+else
+    usage
+fi
+
+if [ $# -ge 6 ]; then
+    ID="$6"
+else
+    ID=''
+    PV_IMAGE_ENABLED='False'
+fi
+
+IMAGE_CACHE_DIR="$HOME/.cache/stpv"
+IMAGE_CACHE_HASH=$(echo "$FILE_PATH" | sha1sum | awk '{print $1}')
+IMAGE_CACHE_PATH="$IMAGE_CACHE_DIR/$IMAGE_CACHE_HASH.jpg"
+
+FILE_EXTENSION="${FILE_PATH##*.}"
+FILE_EXTENSION_LOWER=$(echo "$FILE_EXTENSION" | tr '[:upper:]' '[:lower:]')
+
+command -v ueberzug >/dev/null || PV_IMAGE_ENABLED='False'
+
+asciize() {
+    identify -format '%w\n%h' "$1" | {
+        read w
+        read h
+        if [ "$w" -gt "$h" ]; then
+            [ ! "$W" ] && W=$(($(tput cols)/2))
+            opts="--width=$W"
+        else
+            [ ! "$H" ] && H=$(tput lines)
+            opts="--height=$H"
+        fi
+        jp2a "$opts" "$1" 2>/dev/null
+    }
+}
+
+handle_extension() {
+    case "${FILE_EXTENSION_LOWER}" in
+        # Archive
+        a|ace|alz|arc|arj|bz|bz2|cab|cpio|deb|gz|jar|lha|lz|lzh|lzma|lzo|\
+            rpm|rz|t7z|tar|tbz|tbz2|tgz|tlz|txz|tZ|tzo|war|xpi|xz|Z|zip)
+            # JSON
+            if echo "$FILE_PATH" | grep -Eq '.+\.json\.xz$'; then
+                xzcat "${FILE_PATH}" | jq -C . && exit 0
+            else # Others
+                atool --list -- "${FILE_PATH}" && exit 0
+                bsdtar --list --file "${FILE_PATH}" && exit 0
+            fi
+            exit 1;;
+        rar)
+            # Avoid password prompt by providing empty password
+            unrar lt -p- -- "${FILE_PATH}" && exit 0
+            exit 1;;
+        7z)
+            # Avoid password prompt by providing empty password
+            7z l -p -- "${FILE_PATH}" && exit 0
+            exit 1;;
+
+        # PDF
+        pdf)
+            # Preview as text conversion
+            pdftotext -layout -l 10 -nopgbrk -q -- "${FILE_PATH}" - && exit 0
+            mutool draw -F txt -i -- "${FILE_PATH}" 1-10 && exit 0
+            exiftool "${FILE_PATH}" && exit 0
+            exit 1;;
+
+        # BitTorrent
+        torrent)
+            transmission-show -- "${FILE_PATH}" && exit 0
+            exit 1;;
+
+        # OpenDocument
+        odt|ods|odp|sxw)
+            # Preview as text conversion
+            odt2txt "${FILE_PATH}" && exit 0
+            exit 1;;
+
+        # HTML
+        htm|html|xhtml)
+            # Preview as text conversion
+            w3m -dump "${FILE_PATH}" && exit 0
+            lynx -dump -- "${FILE_PATH}" && exit 0
+            elinks -dump "${FILE_PATH}" && exit 0
+            ;; # Continue with next handler on failure
+
+        # JSON
+        json)
+            jq -C . "${FILE_PATH}" && exit 0
+            ;; # Continue with next handler on failure
+
+    esac
+}
+
+handle_mime() {
+    local mimetype="${1}"
+    case "${mimetype}" in
+        # Directory
+        inode/directory)
+            ls --color --group-directories-first "${FILE_PATH}" && exit 0
+            exit 1;;
+
+        # Text
+        text/* | */xml | */json)
+            # Syntax highlight
+            if [ "$( stat --printf='%s' -- "${FILE_PATH}" )" -gt 262143 ]; then # > 256KiB
+                exit 2
+            fi
+            highlight --replace-tabs=4 --out-format=ansi \
+                      --style='pablo' --force -- "${FILE_PATH}" && exit 0
+            exit 2;;
+
+        # Image
+        image/*)
+            # Preview as text conversion
+            # viu "${FILE_PATH}"
+            # img2txt --gamma=0.6 -- "${FILE_PATH}"
+            [ $(du "${FILE_PATH}" | cut -f 1) -le 6000 ] && { # only if <= 6M
+                asciize "${FILE_PATH}" || { # probably if not jpg
+                    j=/tmp/stpvjp2atmp.jpg
+                    convert "${FILE_PATH}" "$j"
+                    asciize "$j"
+                    rm -f "$j"
+                } && echo
+            }
+            exiftool "${FILE_PATH}" && exit 0
+            exit 1;;
+
+        # Video
+        video/*)
+            j=/tmp/stpvjp2atmp.jpg
+            ffmpegthumbnailer -i "${FILE_PATH}" -o "$j"
+            asciize "$j"
+            rm -f "$j"
+            echo
+            exiftool "${FILE_PATH}" && exit 0
+            exit 1;;
+
+        # Audio
+        audio/*|application/octet-stream)
+            exiftool "${FILE_PATH}" && exit 0
+            exit 1;;
+
+        application/*office*|application/ms*|application/vnd.ms-*)
+            TMP_FILE_PATH="${FILE_PATH##*/}"
+            TMP_FILE_PATH="/tmp/${TMP_FILE_PATH%.*}.txt"
+            libreoffice \
+                --headless \
+                --convert-to txt "${FILE_PATH}" \
+                --outdir /tmp >/dev/null \
+                && cat "$TMP_FILE_PATH" \
+                && rm -f "$TMP_FILE_PATH" \
+                && exit 0
+            exit 1;;
+    esac
+}
+
+handle_image() {
+    [ -e "${IMAGE_CACHE_PATH}" ] &&
+        [ "${IMAGE_CACHE_PATH}" -nt "${FILE_PATH}" ] && return
+    mkdir -p "$IMAGE_CACHE_DIR"
+
+    local mimetype="${1}"
+    case "${mimetype}" in
+        # Image
+        image/*) ;; # will be converted below
+
+        # Video
+        video/*)
+            # Thumbnail
+            ffmpegthumbnailer -i "${FILE_PATH}" -o "${IMAGE_CACHE_PATH}" -s 0;;
+
+        # PDF
+        application/pdf)
+            pdftoppm -f 1 -l 1 \
+                     -scale-to-x 1920 \
+                     -scale-to-y -1 \
+                     -singlefile \
+                     -jpeg -tiffcompression jpeg \
+                     -- "${FILE_PATH}" "${IMAGE_CACHE_PATH%.*}";;
+
+        # Office files
+        application/*office*|application/ms*|application/vnd.ms-*)
+            CACHE_DIR="${IMAGE_CACHE_PATH%/*}"
+            TMP_FILE_PATH="${FILE_PATH##*/}"
+            TMP_FILE_PATH="${CACHE_DIR}/${TMP_FILE_PATH%.*}.png"
+            libreoffice \
+                --headless \
+                --convert-to png "${FILE_PATH}" \
+                --outdir "$CACHE_DIR" &&
+                mv "$TMP_FILE_PATH" "$IMAGE_CACHE_PATH";;
+    esac && {
+
+        CONV_FILE="$IMAGE_CACHE_PATH"
+        [ ! -f "$CONV_FILE" ] && CONV_FILE="$FILE_PATH"
+        DIMS=$(identify "$CONV_FILE" | awk '{print $3}')
+        WIDTH=$(echo "$DIMS"| cut -dx -f1)
+        HEIGHT=$(echo "$DIMS"| cut -dx -f2)
+
+        if [ "$HEIGHT" -gt "$MAX_IMG_CACHE_H" ]; then
+            WIDTH=$((WIDTH * MAX_IMG_CACHE_H / HEIGHT))
+            HEIGHT="$MAX_IMG_CACHE_H"
+        fi
+
+        if [ "$WIDTH" -gt "$MAX_IMG_CACHE_W" ]; then
+            HEIGHT=$((HEIGHT * MAX_IMG_CACHE_W / WIDTH))
+            WIDTH="$MAX_IMG_CACHE_W"
+        fi
+
+        convert "$CONV_FILE" \
+                -resize "${WIDTH}x${HEIGHT}" \
+                -define jpeg:extent="$MAX_IMG_CACHE_SIZE" \
+                "${IMAGE_CACHE_PATH}"
+
+    }
+}
+
+handle_fallback() {
+    echo '----- File Type Classification -----' && file --dereference --brief -- "${FILE_PATH}"
+    exit 1
+}
+
+{
+    MIMETYPE="$( file --dereference --brief --mime-type -- "${FILE_PATH}" )"
+    [ "${PV_IMAGE_ENABLED}" = 'True' ] && {
+        handle_image "${MIMETYPE}" &>/dev/null && \
+            stpvimg --add "$ID" "${IMAGE_CACHE_PATH}" \
+                    "$X" "$Y" "$W" "$H" \
+                    2>/dev/null && exit 5
+    }
+    [ "$ID" ] && stpvimg --clear "$ID"
+    handle_extension
+    handle_mime "${MIMETYPE}"
+    handle_fallback
+} #| fribidi
+
+exit 1

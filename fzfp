@@ -1,0 +1,31 @@
+#!/bin/bash
+
+ID=$$
+W=$(tput cols)
+H=$(tput lines)
+
+if [ "$1" = '--nopv' ]; then
+    shift
+elif [[ "$W" -gt 52 || "$H" -gt 13 ]]; then
+    COLS=$(tput cols)
+    LINS=$(tput lines)
+    PV=(--preview-window)
+    if [ "$W" -gt $((H*3)) ]; then
+        PV+=(right:50%)
+        X=$((COLS / 2 + 2))
+        Y=1
+        W=$((((COLS - 1) / 2) - 2))
+        H=$((LINS - 2))
+    else
+        PV+=(down:50%)
+        X=1
+        Y=$((LINS / 2 + 2))
+        W=$((COLS - 2))
+        H=$((((LINS - 1) / 2) - 2))
+    fi
+    PV+=(--preview "stpv {} $H $W $X $Y $ID")
+fi
+
+stpvimg --listen $ID 2>/dev/null &
+fzf "${PV[@]}" --reverse "$@"
+stpvimg --end $ID

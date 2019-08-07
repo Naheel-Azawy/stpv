@@ -1,0 +1,87 @@
+#!/bin/bash
+
+command -v ueberzug >/dev/null || {
+    >&2 echo 'ueberzug must be installed'
+    exit 1
+}
+
+function printerr {
+    BIN=$(basename "$0")
+    >&2 echo -e "usage: $BIN [--listen id] [--add id picture [x y w h]] [--clear id] [--end id]\n\n" \
+        "Example usage:\n" \
+        "$ stpvimg --listen 0 &\n" \
+        "$ stpvimg --add 0 $HOME/1.png\n" \
+        "$ stpvimg --add 0 $HOME/2.png 0 10 20 20\n" \
+        "$ stpvimg --clear 0\n" \
+        "$ stpvimg --end 0\n"
+    exit 1
+}
+
+# check the id
+[[ "$2" == '' ]] && printerr
+
+# the fifo
+F="/tmp/stpvimgfifo$2"
+
+# pid of this listener
+FPID="$F-pid"
+
+# add picture
+[[ "$1" == '--add' ]] && [[ -f "$3" ]] && {
+    [ ! -e "$F" ] && exit
+    X="$4"; Y="$5"; W="$6"; H="$7"
+    [ ! "$X" ] || [ ! "$Y" ] || [ ! "$W" ] || [ ! "$H" ] && {
+        COLS=$(($(tput cols) / 2))
+        LINS=$(($(tput lines) - 2))
+        X="$COLS"; Y="1"; W="$COLS"; H="$LINS"
+    }
+    echo "$X $Y $W $H $3" >> "$F"
+    exit 0
+}
+
+# clear without exiting
+[[ "$1" == '--clear' ]] && {
+    [ ! -e "$F" ] && exit
+    echo '' >> "$F"
+    exit 0
+}
+
+# exit
+[[ "$1" == '--end' ]] && {
+    [ ! -e "$F" ] && exit
+    echo '0 0 0 0 END' > "$F"
+    { # in case for whatever reason the listenor does not die
+        sleep .1
+        PID=$(cat "$FPID")
+        rm -f "$F" "$FPID"
+        pkill -TERM -P "$PID"
+    } 2>/dev/null &
+    exit 0
+}
+
+# continue and create the listener
+[[ "$1" == '--listen' ]] || printerr
+
+# if already listening, ignore
+[ -e "$F" ] && exit
+
+mkfifo "$F"
+echo $$ > "$FPID"
+
+source "`ueberzug library`"
+
+tail -f "$F" | {
+    while true; do
+        if read x y w h file; then
+            [ "$file" = 'END' ] && exit
+            ImageLayer::remove [identifier]="img0"
+            #echo ">>> $x $y $w $h $file"
+            [[ -f "$file" ]] && {
+                ImageLayer::add [identifier]="img0" \
+                                [path]="$file" \
+                                [x]="$x" [y]="$y" \
+                                [max_width]="$w" [max_height]="$h"
+            }
+        fi
+    done
+} | ImageLayer
