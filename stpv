@@ -1,6 +1,5 @@
 #!/bin/bash
 
-set -C -f -u
 IFS=$'\n'
 
 # ANSI color codes are supported.
@@ -16,7 +15,7 @@ IFS=$'\n'
 # 2    | plain text | Display the plain content of the file
 # 5    | image      | Do not display anything nor cache output
 
-PV_IMAGE_ENABLED="True"
+PV_IMAGE_ENABLED='True'
 MAX_IMG_CACHE_SIZE=300kb
 MAX_IMG_CACHE_W=1920
 MAX_IMG_CACHE_H=1080
@@ -49,9 +48,6 @@ fi
 
 if [ $# -ge 6 ]; then
     ID="$6"
-else
-    ID=''
-    PV_IMAGE_ENABLED='False'
 fi
 
 IMAGE_CACHE_DIR="$HOME/.cache/stpv"
@@ -61,7 +57,13 @@ IMAGE_CACHE_PATH="$IMAGE_CACHE_DIR/$IMAGE_CACHE_HASH.jpg"
 FILE_EXTENSION="${FILE_PATH##*.}"
 FILE_EXTENSION_LOWER=$(echo "$FILE_EXTENSION" | tr '[:upper:]' '[:lower:]')
 
-command -v ueberzug >/dev/null || PV_IMAGE_ENABLED='False'
+[ "$PV_IMAGE_ENABLED" = 'True' ] &&
+    [ "$STPV_NO_IMG" = 1 ] ||
+        [ ! "$ID" ] ||
+        ! command -v ueberzug >/dev/null ||
+        ! command -v stpvimg >/dev/null ||
+        ! stpvimg --alive "$ID" &&
+            PV_IMAGE_ENABLED='False'
 
 asciize() {
     identify -format '%w\n%h' "$1" | {

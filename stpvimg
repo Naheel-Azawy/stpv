@@ -7,7 +7,7 @@ command -v ueberzug >/dev/null || {
 
 function printerr {
     BIN=$(basename "$0")
-    >&2 echo -e "usage: $BIN [--listen id] [--add id picture [x y w h]] [--clear id] [--end id]\n\n" \
+    >&2 echo -e "usage: $BIN [--listen id] [--add id picture [x y w h]] [--clear id] [--end id] [--alive id]\n\n" \
         "Example usage:\n" \
         "$ stpvimg --listen 0 &\n" \
         "$ stpvimg --add 0 $HOME/1.png\n" \
@@ -25,6 +25,12 @@ F="/tmp/stpvimgfifo$2"
 
 # pid of this listener
 FPID="$F-pid"
+
+# check if is alive
+[[ "$1" = '--alive' ]] && {
+    [ -e "$F" ]
+    exit
+}
 
 # add picture
 [[ "$1" == '--add' ]] && [[ -f "$3" ]] && {
