@@ -1,12 +1,57 @@
 * Simple Terminal PreViewer (STPV)
   Preview as many possible kinds of files.
 
-  Needs ueberzug for image previews.
+** Dependancy
+   - [[https://github.com/seebye/ueberzug][ueberzug]] for image previews
+   - Tons of things for other stuff...
+
+   Overall, it should fine without most dependancies, it will fallback to simpler previews. Check stpv to see all needed toys.
+
+** Usage
+*** stpv
+    Note: stpvimg should be run first as mentioned below for image previews to work
+    #+begin_src shell 
+     stpv $FILE $H $W $X $Y $ID # all arguments except FILE are optional
+     stpv --clear $ID # only if stpvimg is running
+    #+end_src
+
+*** stpvimg
+    #+begin_src shell
+     ID=$$
+     stpvimg --listen $ID &
+     stpvimg --add $ID 1.png
+     stpvimg --add $ID 2.png $X $Y $W $H
+     stpvimg --clear $ID
+     stpvimg --end $ID
+    #+end_src
+
+*** Integration with [[https://github.com/gokcehan/lf][LF]]
+    Note: LF now does not support image previews with this thing. If you need to experiment with it right now go for this [[https://github.com/Naheel-Azawy/lf/tree/imgpv][FORK]] under 'imgpv' branch.
+    On lfrc:
+    #+begin_src shell 
+     set previewer stpv
+    #+end_src
+
+    And launch LF like this (probably make a shell function for it like lfcd. [[https://github.com/Naheel-Azawy/naheel-dotfiles/blob/master/configs/fish-config.fish][HERE]] is mine):
+    #+begin_src shell 
+      fid="$(mktemp)"
+      lf -command '$printf $id > '"$fid"'; stpvimg --listen $id &' -last-dir-path="$tmp" "$@"
+      stpvimg --end "$(cat $fid)"
+      rm $fid
+    #+end_src
+
+*** Integration with [[https://github.com/junegunn/fzf][fzf]]
+    #+begin_src shell 
+      fzfp
+    #+end_src
 
 ** Installation
    #+begin_src shell 
-  sudo make install
+     sudo make install
    #+end_src
+
+** Video
+   [[https://youtu.be/MXkjcgzILIc][https://youtu.be/MXkjcgzILIc]]
 
 ** License
    GPL3
