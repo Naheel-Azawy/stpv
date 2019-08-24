@@ -62,6 +62,7 @@ FILE_EXTENSION_LOWER=$(echo "$FILE_EXTENSION" | tr '[:upper:]' '[:lower:]')
         [ ! "$ID" ] ||
         ! command -v ueberzug >/dev/null ||
         ! command -v stpvimg >/dev/null ||
+        ! stpvimg --enabled ||
         ! stpvimg --alive "$ID" &&
             PV_IMAGE_ENABLED='False'
 

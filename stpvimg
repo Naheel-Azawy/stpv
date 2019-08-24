@@ -1,5 +1,25 @@
 #!/bin/bash
 
+TOGGLE="$HOME/.config/stpv/noimgpv"
+
+[ "$1" = '--toggle' ] && {
+    if [ -f "$TOGGLE" ]; then
+        rm -f "$TOGGLE"
+    else
+        d=$(dirname "$TOGGLE")
+        mkdir -p "$d"
+        touch "$TOGGLE"
+    fi
+    exit 0
+}
+
+[ "$1" = '--enabled' ] && {
+    [ ! -f "$TOGGLE" ]
+    exit
+}
+
+[ -f "$TOGGLE" ] && exit 1
+
 command -v ueberzug >/dev/null || {
     >&2 echo 'ueberzug must be installed'
     exit 1
@@ -7,7 +27,7 @@ command -v ueberzug >/dev/null || {
 
 function printerr {
     BIN=$(basename "$0")
-    >&2 echo -e "usage: $BIN [--listen id] [--add id picture [x y w h]] [--clear id] [--end id] [--alive id]\n\n" \
+    >&2 echo -e "usage: $BIN [--listen id] [--add id picture [x y w h]] [--clear id] [--end id] [--alive id] [--toggle] [--enabled]\n\n" \
         "Example usage:\n" \
         "$ stpvimg --listen 0 &\n" \
         "$ stpvimg --add 0 $HOME/1.png\n" \
