@@ -81,6 +81,13 @@ asciize() {
     }
 }
 
+view_pandoc() {
+    text=$(pandoc "$1" -t markdown --columns="$W" -s)
+    echo "$text" | mdcat && exit 0
+    echo "$text" \
+        | bat --color always --language markdown --style plain && exit 0
+}
+
 handle_extension() {
     case "${FILE_EXTENSION_LOWER}" in
         # Archive
@@ -128,13 +135,16 @@ handle_extension() {
             w3m -dump "${FILE_PATH}" && exit 0
             lynx -dump -- "${FILE_PATH}" && exit 0
             elinks -dump "${FILE_PATH}" && exit 0
+            view_pandoc "${FILE_PATH}" && exit 0
             ;; # Continue with next handler on failure
 
         # JSON
         json)
             jq -C . "${FILE_PATH}" && exit 0
             ;; # Continue with next handler on failure
-
+        md|rst|org)
+            view_pandoc "${FILE_PATH}" && exit 0
+            ;;
     esac
 }
 
@@ -152,6 +162,7 @@ handle_mime() {
             if [ "$( stat --printf='%s' -- "${FILE_PATH}" )" -gt 262143 ]; then # > 256KiB
                 exit 2
             fi
+            bat --color always --style header "${FILE_PATH}" && exit 0
             highlight --replace-tabs=4 --out-format=ansi \
                       --style='pablo' --force -- "${FILE_PATH}" && exit 0
             exit 2;;
