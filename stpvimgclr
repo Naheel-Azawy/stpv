@@ -1,0 +1,2 @@
+#!/bin/sh
+stpv --clear "$1"
