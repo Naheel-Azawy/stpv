@@ -66,18 +66,22 @@ FILE_EXTENSION_LOWER=$(echo "$FILE_EXTENSION" | tr '[:upper:]' '[:lower:]')
         ! stpvimg --alive "$ID" &&
             PV_IMAGE_ENABLED='False'
 
-asciize() {
+img_to_txt() {
     identify -format '%w\n%h' "$1" | {
-        read w
-        read h
-        if [ "$w" -gt "$h" ]; then
-            [ ! "$W" ] && W=$(($(tput cols)/2))
-            opts="--width=$W"
-        else
-            [ ! "$H" ] && H=$(tput lines)
-            opts="--height=$H"
-        fi
-        jp2a "$opts" "$1" 2>/dev/null
+       read -r w
+       read -r h
+       [ ! "$W" ] && W=$(($(tput cols)/2))
+       [ ! "$H" ] && H=$(tput lines)
+       if command -v chafa; then
+           chafa --size "$W"x"$H" "$1" 2>/dev/null
+		 			return 0
+		 	fi
+       if [ "$w" -gt "$h" ]; then
+           opts="--width=$W"
+       else
+           opts="--height=$H"
+       fi
+       jp2a "$opts" "$1" 2>/dev/null
     }
 }
 
@@ -173,10 +177,10 @@ handle_mime() {
             # viu "${FILE_PATH}"
             # img2txt --gamma=0.6 -- "${FILE_PATH}"
             [ $(du "${FILE_PATH}" | cut -f 1) -le 6000 ] && { # only if <= 6M
-                asciize "${FILE_PATH}" || { # probably if not jpg
+                img_to_txt "${FILE_PATH}" || { # probably if not jpg
                     j=/tmp/stpvjp2atmp.jpg
                     convert "${FILE_PATH}" "$j"
-                    asciize "$j"
+                    img_to_txt "$j"
                     rm -f "$j"
                 } && echo
             }
@@ -187,7 +191,7 @@ handle_mime() {
         video/*)
             j=/tmp/stpvjp2atmp.jpg
             ffmpegthumbnailer -i "${FILE_PATH}" -o "$j"
-            asciize "$j"
+            img_to_txt "$j"
             rm -f "$j"
             echo
             exiftool "${FILE_PATH}" && exit 0
