@@ -77,7 +77,12 @@ img_to_txt() {
         else
             opts="--height=$H"
         fi
-        jp2a "$opts" "$1" 2>/dev/null && return 0
+        jp2a "$opts" "$1" 2>/dev/null || # probably if not jpg
+            j=/tmp/stpvjp2atmp.jpg &&
+                convert "${FILE_PATH}" "$j" &&
+                jp2a "$opts" "$j" 2>/dev/null &&
+                rm -f "$j" &&
+                return 0
         chafa --size "$W"x"$H" "$1" 2>/dev/null && return 0
     }
 }
@@ -182,12 +187,7 @@ handle_mime() {
             # viu "${FILE_PATH}"
             # img2txt --gamma=0.6 -- "${FILE_PATH}"
             [ $(du "${FILE_PATH}" | cut -f 1) -le 6000 ] && { # only if <= 6M
-                img_to_txt "${FILE_PATH}" || { # probably if not jpg
-                    j=/tmp/stpvjp2atmp.jpg
-                    convert "${FILE_PATH}" "$j"
-                    img_to_txt "$j"
-                    rm -f "$j"
-                } && echo
+                img_to_txt "${FILE_PATH}" && echo
             }
             exiftool "${FILE_PATH}" && exit 0
             exit 1;;
