@@ -35,5 +35,5 @@ fi
 fzf "${PV[@]}" --reverse "$@"
 
 if [ "$IMG" = 1 ]; then
-    stpvimg --end $ID
+    stpvimg --end $ID || true
 fi
