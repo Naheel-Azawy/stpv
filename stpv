@@ -83,14 +83,14 @@ img_to_txt() {
 }
 
 colorize_src() {
-    [ "$1" = --md ] && {
-        batmd='--language markdown'
+    if [ "$1" = "--md" ]; then
+        bat --color always --style plain --language markdown -- "$@" && return 0
         higmd='markdown'
         shift
-    }
+    fi
     highlight --replace-tabs=4 --out-format=ansi \
               --style='pablo' --force -- "$higmd" "$@" 2>/dev/null && return 0
-    bat --color always --style plain "$batmd" -- "$@" && return 0
+    bat --color always --style plain -- "$@" && return 0
 }
 
 view_pandoc() {
