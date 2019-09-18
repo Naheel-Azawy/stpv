@@ -78,7 +78,7 @@ img_to_txt() {
             opts="--height=$H"
         fi
         jp2a "$opts" "$1" 2>/dev/null || # probably if not jpg
-            j=/tmp/stpvjp2atmp.jpg &&
+            j="/tmp/stpvjp2atmp$$.jpg" &&
                 convert "${FILE_PATH}" "$j" &&
                 jp2a "$opts" "$j" 2>/dev/null &&
                 rm -f "$j" &&
@@ -194,7 +194,7 @@ handle_mime() {
 
         # Video
         video/*)
-            j=/tmp/stpvjp2atmp.jpg
+            j="/tmp/stpvjp2atmp$$.jpg"
             ffmpegthumbnailer -i "${FILE_PATH}" -o "$j"
             img_to_txt "$j"
             rm -f "$j"
