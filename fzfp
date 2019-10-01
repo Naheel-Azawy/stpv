@@ -12,7 +12,7 @@ elif [[ "$W" -gt 52 || "$H" -gt 13 ]]; then
     COLS=$(tput cols)
     LINS=$(tput lines)
     PV=(--preview-window)
-    if [ "$W" -gt $((H*3)) ]; then
+    if [ "$W" -gt $((H*3)) ] || [ "$W" -gt 169 ]; then
         PV+=(right:50%)
         X=$((COLS / 2 + 2))
         Y=1
