@@ -59,6 +59,8 @@ FILE_EXTENSION_LOWER=$(echo "$FILE_EXTENSION" | tr '[:upper:]' '[:lower:]')
 
 [ "$PV_IMAGE_ENABLED" = 'True' ] &&
     [ "$STPV_NO_IMG" = 1 ] ||
+        [ -n "$WAYLAND_DISPLAY" ] ||
+        [ "$XDG_SESSION_TYPE" = 'wayland' ] ||
         [ ! "$ID" ] ||
         ! command -v ueberzug >/dev/null ||
         ! command -v stpvimg >/dev/null ||
