@@ -104,7 +104,7 @@ colorize_src() {
 }
 
 view_pandoc() {
-    text=$(pandoc "$1" -t markdown --columns="$W" -s)
+    text=$(pandoc "$1" -t markdown_github+yaml_metadata_block --columns="$W" -s)
     echo "$text" | mdcat && exit 0
     echo "$text" | colorize_src --md && exit 0
 }
