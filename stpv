@@ -183,13 +183,17 @@ handle_mime() {
             exit 1;;
 
         text/x-diff)
+            # use the user-specified git diff pager if it is set
             if git config core.pager >/dev/null; then
                 eval "$(git config core.pager)" < "${FILE_PATH}" && exit 0
             fi
+            # delta and diff-so-fancy are fancy diff pagers.
             delta "${FILE_PATH}" && exit 0
             diff-so-fancy "${FILE_PATH}" && exit 0
+            # colorize_src uses highlight or bat, both of which support
+            # diff/patch syntax.
             colorize_src "${FILE_PATH}" && exit 0
-						exit 1;;
+            exit 1;;
 
         # Text
         text/* | */xml | */json)
