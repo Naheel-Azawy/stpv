@@ -182,6 +182,15 @@ handle_mime() {
             ls --color --group-directories-first "${FILE_PATH}" && exit 0
             exit 1;;
 
+        text/x-diff)
+            if git config core.pager >/dev/null; then
+                eval "$(git config core.pager)" < "${FILE_PATH}" && exit 0
+            fi
+            delta "${FILE_PATH}" && exit 0
+            diff-so-fancy "${FILE_PATH}" && exit 0
+            colorize_src "${FILE_PATH}" && exit 0
+						exit 1;;
+
         # Text
         text/* | */xml | */json)
             # Syntax highlight
