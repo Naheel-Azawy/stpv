@@ -2,6 +2,10 @@
 
 TOGGLE="$HOME/.config/stpv/noimgpv"
 
+PV_IMAGE_ENABLED=1
+PV_TYPE=text
+source "$HOME/.config/stpv/config.sh" 2>/dev/null
+
 [ "$1" = '--toggle' ] && {
     if [ -f "$TOGGLE" ]; then
         rm -f "$TOGGLE"
@@ -14,18 +18,31 @@ TOGGLE="$HOME/.config/stpv/noimgpv"
 }
 
 [ "$1" = '--enabled' ] && {
-    [ ! -f "$TOGGLE" ]
+    [ "$PV_IMAGE_ENABLED" = 1 ] || [ ! -f "$TOGGLE" ]
     exit
 }
 
-[ -f "$TOGGLE" ] && exit 1
-
-command -v ueberzug >/dev/null || {
-    >&2 echo 'ueberzug must be installed'
+[ "$PV_IMAGE_ENABLED" = 0 ] || [ -f "$TOGGLE" ] &&
     exit 1
-}
 
-function printerr {
+# ueberzug not supported for wayland
+[ -n "$WAYLAND_DISPLAY" ] ||
+    [ "$XDG_SESSION_TYPE" = 'wayland' ] &&
+        PV_TYPE=text
+
+if [ "$PV_TYPE" = text ]; then
+    command -v chafa >/dev/null || {
+        >&2 echo 'chafa must be installed'
+        exit 1
+    }
+else
+    command -v ueberzug >/dev/null || {
+        >&2 echo 'ueberzug must be installed'
+        exit 1
+    }
+fi
+
+printerr() {
     BIN=$(basename "$0")
     >&2 echo -e "usage: $BIN [--listen id] [--add id picture [x y w h]] [--clear id] [--end id] [--alive id] [--toggle] [--enabled]\n\n" \
         "Example usage:\n" \
@@ -38,7 +55,7 @@ function printerr {
 }
 
 # check the id
-[[ "$2" == '' ]] && printerr
+[ "$2" = '' ] && printerr
 
 # the fifo
 F="/tmp/stpvimgfifo$2"
@@ -46,34 +63,51 @@ F="/tmp/stpvimgfifo$2"
 # pid of this listener
 FPID="$F-pid"
 
-# check if is alive
-[[ "$1" = '--alive' ]] && {
-    [ -e "$F" ]
-    exit
-}
-
 # add picture
-[[ "$1" == '--add' ]] && [[ -f "$3" ]] && {
-    [ ! -e "$F" ] && exit
+[ "$1" = '--add' ] && [ -f "$3" ] && {
     X="$4"; Y="$5"; W="$6"; H="$7"
     [ ! "$X" ] || [ ! "$Y" ] || [ ! "$W" ] || [ ! "$H" ] && {
         COLS=$(($(tput cols) / 2))
         LINS=$(($(tput lines) - 2))
         X="$COLS"; Y="1"; W="$COLS"; H="$LINS"
     }
-    echo "$X $Y $W $H $3" >> "$F"
+
+    if [ "$PV_TYPE" = text ]; then
+        identify -format '%w\n%h' "$3" | {
+            read -r w
+            read -r h
+            chafa \
+                --fill=block \
+                --symbols=block \
+                -c 256 \
+                --size "$W"x"$H" \
+                "$3" 2>/dev/null
+        }
+    else
+        [ ! -e "$F" ] && exit
+        echo "$X $Y $W $H $3" >> "$F"
+    fi
     exit 0
 }
 
+# other options are meaningless in text mode
+[ "$PV_TYPE" = text ] && exit 0
+
+# check if is alive
+[ "$1" = '--alive' ] && {
+    [ -e "$F" ]
+    exit
+}
+
 # clear without exiting
-[[ "$1" == '--clear' ]] && {
+[ "$1" = '--clear' ] && {
     [ ! -e "$F" ] && exit
     echo '' >> "$F"
     exit 0
 }
 
 # exit
-[[ "$1" == '--end' ]] && {
+[ "$1" = '--end' ] && {
     [ ! -e "$F" ] && exit
     echo '0 0 0 0 END' > "$F"
     { # in case for whatever reason the listenor does not die
@@ -86,7 +120,7 @@ FPID="$F-pid"
 }
 
 # continue and create the listener
-[[ "$1" == '--listen' ]] || printerr
+[ "$1" = '--listen' ] || printerr
 
 # if already listening, ignore
 [ -e "$F" ] && exit
@@ -102,7 +136,7 @@ tail -f "$F" | {
             [ "$file" = 'END' ] && exit
             ImageLayer::remove [identifier]="img0"
             #echo ">>> $x $y $w $h $file"
-            [[ -f "$file" ]] && {
+            [ -f "$file" ] && {
                 ImageLayer::add [identifier]="img0" \
                                 [path]="$file" \
                                 [x]="$x" [y]="$y" \

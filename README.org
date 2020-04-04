@@ -1,6 +1,8 @@
 * Simple Terminal PreViewer (STPV)
   Preview as many possible kinds of files.
 
+  [[./screenshot.png]]
+
 ** Dependancy
    - [[https://github.com/seebye/ueberzug][ueberzug]] for image previews
    - Tons of things for other stuff...
@@ -49,6 +51,13 @@
    #+begin_src shell 
      sudo make install
    #+end_src
+
+** Configuration
+   `~/.config/stpv/config.sh`:
+   #+BEGIN_SRC shell
+     PV_IMAGE_ENABLED=1
+     PV_TYPE=img
+   #+END_SRC
 
 ** Video
    [[https://youtu.be/MXkjcgzILIc][https://youtu.be/MXkjcgzILIc]]
