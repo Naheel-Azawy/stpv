@@ -40,6 +40,10 @@ TIMER_COUNT=0
 while [ -f "$LOCK" ] && [ $TIMER_COUNT -lt 10 ]; do
     sleep .5
     TIMER_COUNT=$((TIMER_COUNT+1))
+    # keep waiting for convert, it eats ram...
+    [ $TIMER_COUNT -ge 9 ] &&
+        pgrep convert >/dev/null &&
+        TIMER_COUNT=0
 done
 touch "$LOCK"
 
@@ -120,7 +124,7 @@ handle_extension() {
             # Avoid password prompt by providing empty password
             unrar lt -p- -- "${FILE_PATH}" && end 0
             end 1;;
-        7z)
+        7z|iso)
             # Avoid password prompt by providing empty password
             7z l -p -- "${FILE_PATH}" && end 0
             end 1;;
