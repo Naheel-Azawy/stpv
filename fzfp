@@ -7,7 +7,7 @@ H=$(tput lines)
 if [ "$1" = '--nopv' ]; then
     IMG=0
     shift
-elif [[ "$W" -gt 52 || "$H" -gt 13 ]]; then
+elif [ "$W" -gt 52 ] || [ "$H" -gt 13 ]; then
     IMG=1
     COLS=$(tput cols)
     LINS=$(tput lines)
