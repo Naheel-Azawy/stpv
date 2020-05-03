@@ -18,73 +18,12 @@ IFS=$'\n'
 # 2    | plain text | Display the plain content of the file
 # 5    | image      | Do not display anything nor cache output
 
-PV_IMAGE_ENABLED='True'
-MAX_IMG_CACHE_SIZE=300kb
-MAX_IMG_CACHE_W=1920
-MAX_IMG_CACHE_H=1080
-
 usage() {
     BIN=$(basename "$0")
     >&2 echo -e "usage: $BIN FILE [ H W X Y ] [ ID ]\n" \
         "      $BIN --clear ID"
     exit 1
 }
-
-[ $# = 0 ] || [ "$1" = -h ] || [ "$1" = --help ] && usage
-
-if [ $# -eq 2 ] && [ "$1" = '--clear' ]; then
-    stpvimg --clear "$2"
-    exit
-fi
-
-# dirty but saves lives... Wait up to 5 seconds if others are working
-LOCK=/tmp/__stpv_lock
-TIMER_COUNT=0
-while [ -f "$LOCK" ] && [ $TIMER_COUNT -lt 10 ]; do
-    sleep .5
-    TIMER_COUNT=$((TIMER_COUNT+1))
-    # keep waiting for convert, it eats ram...
-    [ $TIMER_COUNT -ge 9 ] &&
-        pgrep convert >/dev/null &&
-        TIMER_COUNT=0
-done
-touch "$LOCK"
-
-FILE_PATH="$1"
-
-if [ $# -ge 5 ]; then
-    H="$2"; W="$3"; X="$4"; Y="$5"
-elif [ $# -eq 1 ]; then
-    COLS=$(($(tput cols) / 2))
-    LINS=$(($(tput lines) - 2))
-    X="$COLS"; Y="1"; W="$COLS"; H="$LINS"
-elif [ $# -eq 2 ]; then
-    COLS=$(($(tput cols) / 2))
-    LINS="$2"
-    X="$COLS"; Y="1"; W="$COLS"; H="$LINS"
-else
-    usage
-fi
-
-if [ $# -ge 6 ]; then
-    ID="$6"
-fi
-
-[ ! "$ID" ] && ID=-1
-
-IMAGE_CACHE_DIR="$HOME/.cache/stpv"
-IMAGE_CACHE_HASH=$(echo "$FILE_PATH" | sha1sum | awk '{print $1}')
-IMAGE_CACHE_PATH="$IMAGE_CACHE_DIR/$IMAGE_CACHE_HASH.jpg"
-
-FILE_EXTENSION="${FILE_PATH##*.}"
-FILE_EXTENSION_LOWER=$(echo "$FILE_EXTENSION" | tr '[:upper:]' '[:lower:]')
-
-[ "$PV_IMAGE_ENABLED" = 'True' ] &&
-    [ "$STPV_NO_IMG" = 1 ] ||
-        ! command -v stpvimg >/dev/null ||
-        ! stpvimg --enabled ||
-        ! stpvimg --alive "$ID" &&
-            PV_IMAGE_ENABLED='False'
 
 end() {
     rm -f "$LOCK"
@@ -315,17 +254,90 @@ handle_fallback() {
     end 1
 }
 
-{
-    MIMETYPE="$( file --dereference --brief --mime-type -- "${FILE_PATH}" )"
-    [ "${PV_IMAGE_ENABLED}" = 'True' ] &&
-        handle_image "${MIMETYPE}" &>/dev/null &&
-        stpvimg --add "$ID" "${IMAGE_CACHE_PATH}" \
-                "$X" "$Y" "$W" "$H" \
-                2>/dev/null && end 5
-    [ "$ID" ] && stpvimg --clear "$ID"
-    handle_extension
-    handle_mime "${MIMETYPE}"
-    handle_fallback
-} #| fribidi
+real_main() {
+    PV_IMAGE_ENABLED='True'
+    MAX_IMG_CACHE_SIZE=300kb
+    MAX_IMG_CACHE_W=1920
+    MAX_IMG_CACHE_H=1080
 
-end 1
+    [ $# = 0 ] || [ "$1" = -h ] || [ "$1" = --help ] && usage
+
+    if [ $# -eq 2 ] && [ "$1" = '--clear' ]; then
+        stpvimg --clear "$2"
+        exit
+    fi
+
+    FILE_PATH="$1"
+
+    if [ $# -ge 5 ]; then
+        H="$2"; W="$3"; X="$4"; Y="$5"
+    elif [ $# -eq 1 ]; then
+        COLS=$(($(tput cols) / 2))
+        LINS=$(($(tput lines) - 2))
+        X="$COLS"; Y="1"; W="$COLS"; H="$LINS"
+    elif [ $# -eq 2 ]; then
+        COLS=$(($(tput cols) / 2))
+        LINS="$2"
+        X="$COLS"; Y="1"; W="$COLS"; H="$LINS"
+    else
+        usage
+    fi
+
+    if [ $# -ge 6 ]; then
+        ID="$6"
+    fi
+
+    [ ! "$ID" ] && ID=-1
+
+    IMAGE_CACHE_DIR="$HOME/.cache/stpv"
+    IMAGE_CACHE_HASH=$(echo "$FILE_PATH" | sha1sum | awk '{print $1}')
+    IMAGE_CACHE_PATH="$IMAGE_CACHE_DIR/$IMAGE_CACHE_HASH.jpg"
+
+    FILE_EXTENSION="${FILE_PATH##*.}"
+    FILE_EXTENSION_LOWER=$(echo "$FILE_EXTENSION" | tr '[:upper:]' '[:lower:]')
+
+    [ "$PV_IMAGE_ENABLED" = 'True' ] &&
+        [ "$STPV_NO_IMG" = 1 ] ||
+            ! command -v stpvimg >/dev/null ||
+            ! stpvimg --enabled ||
+            ! stpvimg --alive "$ID" &&
+                PV_IMAGE_ENABLED='False'
+
+    {
+        MIMETYPE="$( file --dereference --brief --mime-type -- "${FILE_PATH}" )"
+        [ "${PV_IMAGE_ENABLED}" = 'True' ] &&
+            handle_image "${MIMETYPE}" &>/dev/null &&
+            stpvimg --add "$ID" "${IMAGE_CACHE_PATH}" \
+                    "$X" "$Y" "$W" "$H" \
+                    2>/dev/null && end 5
+        [ "$ID" ] && stpvimg --clear "$ID"
+        handle_extension
+        handle_mime "${MIMETYPE}"
+        handle_fallback
+    } #| fribidi
+
+    end 1
+}
+
+main() {
+    if [ "$1" = '--real' ]; then
+       shift
+       real_main "$@"
+    else
+        # Because this script is expected to run inside a file
+        # manager. Now imagine scrolling over lots of files
+        # quickly. This will create tons of processes that are
+        # not so light... Keep in mind `convert` runs a lot in
+        # here... So, this will save your life and keep your
+        # machine safe!
+        "$0" --real "$@" &
+        count=0
+        while [ $count -lt 5 ] && [ "$(jobs)" ]; do
+            count=$((count+1))
+            sleep .1
+        done
+        kill $! &>/dev/null
+    fi
+}
+
+main "$@"
