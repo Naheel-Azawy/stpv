@@ -1,14 +1,6 @@
 #!/bin/bash
 
-# TODO: start in a sub-process, wait for a fixed amount
-# of time for it, and kill if still alive
-
 IFS=$'\n'
-
-# ANSI color codes are supported.
-# STDIN is disabled, so interactive scripts won't work properly
-
-# This script is considered a configuration file and must be updated manually.
 
 # Meanings of exit codes:
 # code | meaning    | action of ranger
@@ -18,16 +10,19 @@ IFS=$'\n'
 # 2    | plain text | Display the plain content of the file
 # 5    | image      | Do not display anything nor cache output
 
+end() {
+    case "$1" in
+        2) cat "${FILE_PATH}"; exit 0;;
+        5) exit 0;;
+        *) exit "$@";;
+    esac
+}
+
 usage() {
     BIN=$(basename "$0")
     >&2 echo -e "usage: $BIN FILE [ H W X Y ] [ ID ]\n" \
         "      $BIN --clear ID"
     exit 1
-}
-
-end() {
-    rm -f "$LOCK"
-    exit "$@"
 }
 
 colorize_src() {
