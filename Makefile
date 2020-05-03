@@ -1,4 +1,5 @@
 PREFIX = /usr
+CWD = $(CURDIR)
 
 install:
 	mkdir -p $(DESTDIR)$(PREFIX)/bin/
@@ -6,6 +7,13 @@ install:
 	cp -f stpvimg $(DESTDIR)$(PREFIX)/bin/
 	cp -f stpvimgclr $(DESTDIR)$(PREFIX)/bin/
 	cp -f fzfp $(DESTDIR)$(PREFIX)/bin/
+
+link:
+	mkdir -p $(DESTDIR)$(PREFIX)/bin/
+	ln -sf $(CWD)/stpv $(DESTDIR)$(PREFIX)/bin/
+	ln -sf $(CWD)/stpvimg $(DESTDIR)$(PREFIX)/bin/
+	ln -sf $(CWD)/stpvimgclr $(DESTDIR)$(PREFIX)/bin/
+	ln -sf $(CWD)/fzfp $(DESTDIR)$(PREFIX)/bin/
 
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/stpv

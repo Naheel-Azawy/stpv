@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# TODO: start in a sub-process, wait for a fixed amount
+# of time for it, and kill if still alive
+
 IFS=$'\n'
 
 # ANSI color codes are supported.
