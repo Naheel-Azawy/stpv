@@ -143,7 +143,7 @@ handle_mime() {
             end 1;;
 
         # Text
-        text/* | */xml | */json)
+        text/* | */xml | */json | application/javascript)
             # Syntax highlight
             if [ "$( stat --printf='%s' -- "${FILE_PATH}" )" -gt 262143 ]; then # > 256KiB
                 end 2
