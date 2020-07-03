@@ -36,7 +36,6 @@ colorize_src() {
         highlight --replace-tabs=4 --out-format=ansi \
                   --style='pablo' --force markdown -- "$@" 2>/dev/null && return 0
     else
-        echo "$W"
         bat --color always --style plain \
             --terminal-width "$W" --wrap character -- "$@" && return 0
         highlight --replace-tabs=4 --out-format=ansi \
