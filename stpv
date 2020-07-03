@@ -31,11 +31,14 @@ colorize_src() {
     fi
     if [ "$1" = "--md" ]; then
         shift
-        bat --color always --style plain --language markdown -- "$@" && return 0
+        bat --color always --style plain --language markdown \
+            --terminal-width "$W" --wrap character -- "$@" && return 0
         highlight --replace-tabs=4 --out-format=ansi \
                   --style='pablo' --force markdown -- "$@" 2>/dev/null && return 0
     else
-        bat --color always --style plain -- "$@" && return 0
+        echo "$W"
+        bat --color always --style plain \
+            --terminal-width "$W" --wrap character -- "$@" && return 0
         highlight --replace-tabs=4 --out-format=ansi \
                   --style='pablo' --force -- "$@" 2>/dev/null && return 0
     fi
@@ -336,8 +339,8 @@ real_main() {
 
 main() {
     if [ "$1" = '--real' ]; then
-       shift
-       real_main "$@"
+        shift
+        real_main "$@"
     else
         # Because this script is expected to run inside a file
         # manager. Now imagine scrolling over lots of files
