@@ -53,11 +53,13 @@
    #+end_src
 
 ** Configuration
-   `~/.config/stpv/config.sh`:
+   ~~/.config/stpv/config.sh~:
    #+BEGIN_SRC shell
      PV_IMAGE_ENABLED=1
      PV_TYPE=img
+     PREFER_TEXT=
    #+END_SRC
+   P.S. use any string for true, leave empty for false
 
 ** Video
    [[https://youtu.be/MXkjcgzILIc][https://youtu.be/MXkjcgzILIc]]
