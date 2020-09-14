@@ -270,10 +270,13 @@ handle_link() {
 }
 
 real_main() {
-    PV_IMAGE_ENABLED='True'
+    PV_IMAGE_ENABLED=1
     MAX_IMG_CACHE_SIZE=300kb
     MAX_IMG_CACHE_W=1920
     MAX_IMG_CACHE_H=1080
+    PREFER_TEXT=1
+
+    source "$HOME/.config/stpv/config.sh" 2>/dev/null
 
     [ $# = 0 ] || [ "$1" = -h ] || [ "$1" = --help ] && usage
 
@@ -313,16 +316,21 @@ real_main() {
 
     MIMETYPE=$(file --dereference --brief --mime-type -- "${FILE_PATH}")
 
-    [ "$PV_IMAGE_ENABLED" = 'True' ] &&
+    [ "$PV_IMAGE_ENABLED" ] &&
         [ "$STPV_NO_IMG" = 1 ] ||
             ! command -v stpvimg >/dev/null ||
             ! stpvimg --enabled ||
             ! stpvimg --alive "$ID" &&
-                PV_IMAGE_ENABLED='False'
+                PV_IMAGE_ENABLED=''
+
+    case "$MIMETYPE" in # if text is preferred for documents
+        application/pdf|application/*office*|application/ms*|application/vnd.ms-*)
+            [ "$PREFER_TEXT" ] && PV_IMAGE_ENABLED='';;
+    esac
 
     {
         handle_link
-        [ "${PV_IMAGE_ENABLED}" = 'True' ] &&
+        [ "${PV_IMAGE_ENABLED}" ] &&
             handle_image "${MIMETYPE}" &>/dev/null &&
             stpvimg --add "$ID" "${IMAGE_CACHE_PATH}" \
                     "$X" "$Y" "$W" "$H" \
