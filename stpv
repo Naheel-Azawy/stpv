@@ -31,12 +31,12 @@ colorize_src() {
     fi
     if [ "$1" = "--md" ]; then
         shift
-        bat --color always --style plain --language markdown \
+        bat --color always --style plain --paging never --language markdown \
             --terminal-width "$W" --wrap character -- "$@" && return 0
         highlight --replace-tabs=4 --out-format=ansi \
                   --style='pablo' --force markdown -- "$@" 2>/dev/null && return 0
     else
-        bat --color always --style plain \
+        bat --color always --style plain --paging never \
             --terminal-width "$W" --wrap character -- "$@" && return 0
         highlight --replace-tabs=4 --out-format=ansi \
                   --style='pablo' --force -- "$@" 2>/dev/null && return 0
@@ -229,6 +229,9 @@ handle_image() {
                 --convert-to png "${FILE_PATH}" \
                 --outdir "$CACHE_DIR" &&
                 mv "$TMP_FILE_PATH" "$IMAGE_CACHE_PATH";;
+
+        # Other types
+        *) return 1;;
     esac && {
 
         CONV_FILE="$IMAGE_CACHE_PATH"
@@ -331,7 +334,7 @@ real_main() {
     {
         handle_link
         [ "${PV_IMAGE_ENABLED}" ] &&
-            handle_image "${MIMETYPE}" &>/dev/null &&
+            handle_image "${MIMETYPE}" &&
             stpvimg --add "$ID" "${IMAGE_CACHE_PATH}" \
                     "$X" "$Y" "$W" "$H" \
                     2>/dev/null && end 5
