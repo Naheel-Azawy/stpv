@@ -20,7 +20,7 @@ end() {
 
 usage() {
     BIN=$(basename "$0")
-    >&2 echo -e "usage: $BIN FILE [ H W X Y ] [ ID ]\n" \
+    >&2 echo -e "usage: $BIN FILE [ W H X Y ] [ ID ]\n" \
         "      $BIN --clear ID"
     exit 1
 }
@@ -291,7 +291,7 @@ real_main() {
     FILE_PATH="$1"
 
     if [ $# -ge 5 ]; then
-        H="$2"; W="$3"; X="$4"; Y="$5"
+        W="$2"; H="$3"; X="$4"; Y="$5"
     elif [ $# -eq 1 ]; then
         COLS=$(($(tput cols) / 2))
         LINS=$(($(tput lines) - 2))
