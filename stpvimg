@@ -1,12 +1,15 @@
-#!/bin/bash
+#!/bin/sh
 
 TOGGLE="$HOME/.config/stpv/noimgpv"
+CONFIG="$HOME/.config/stpv/config.sh"
 
 PV_IMAGE_ENABLED=1
 PV_TYPE=text
-source "$HOME/.config/stpv/config.sh" 2>/dev/null
+. "$CONFIG" 2>/dev/null
 
-[ "$1" = '--toggle' ] && {
+CMD=; ID=; FIFO=; FPID=
+
+toggle() {
     if [ -f "$TOGGLE" ]; then
         rm -f "$TOGGLE"
     else
@@ -14,58 +17,34 @@ source "$HOME/.config/stpv/config.sh" 2>/dev/null
         mkdir -p "$d"
         touch "$TOGGLE"
     fi
-    exit 0
 }
 
-[ "$1" = '--enabled' ] && {
+isenabled() {
     [ "$PV_IMAGE_ENABLED" = 1 ] || [ ! -f "$TOGGLE" ]
-    exit
 }
 
-[ "$PV_IMAGE_ENABLED" = 0 ] || [ -f "$TOGGLE" ] &&
-    exit 1
-
-# ueberzug not supported for wayland
-[ -n "$WAYLAND_DISPLAY" ] ||
-    [ "$XDG_SESSION_TYPE" = 'wayland' ] &&
-        PV_TYPE=text
-
-if [ "$PV_TYPE" = text ]; then
-    command -v chafa >/dev/null || {
-        >&2 echo 'chafa must be installed'
-        exit 1
-    }
-else
-    command -v ueberzug >/dev/null || {
-        >&2 echo 'ueberzug must be installed'
-        exit 1
-    }
-fi
-
-printerr() {
-    BIN=$(basename "$0")
-    >&2 echo -e "usage: $BIN [--listen id] [--add id picture [x y w h]] [--clear id] [--end id] [--alive id] [--toggle] [--enabled]\n\n" \
-        "Example usage:\n" \
-        "$ stpvimg --listen 0 &\n" \
-        "$ stpvimg --add 0 $HOME/1.png\n" \
-        "$ stpvimg --add 0 $HOME/2.png 0 10 20 20\n" \
-        "$ stpvimg --clear 0\n" \
-        "$ stpvimg --end 0\n"
-    exit 1
+isalive() {
+    [ -e "$FIFO" ]
 }
 
-# check the id
-[ "$2" = '' ] && printerr
+listen() {
+    [ "$PV_TYPE" = text ] && return 0
 
-# the fifo
-F="/tmp/stpvimgfifo$2"
+    # if already listening, ignore
+    [ -e "$FIFO" ] && return 0
 
-# pid of this listener
-FPID="$F-pid"
+    mkfifo "$FIFO"
+    echo $$ > "$FPID"
 
-# add picture
-[ "$1" = '--add' ] && [ -f "$3" ] && {
-    X="$4"; Y="$5"; W="$6"; H="$7"
+    # echo "FIFO='$FIFO'"
+    # echo "PID=$$"
+
+    trap end EXIT
+    tail -f "$FIFO" | ueberzug layer
+}
+
+add() {
+    F="$1"; X="$2"; Y="$3"; W="$4"; H="$5"
     [ ! "$X" ] || [ ! "$Y" ] || [ ! "$W" ] || [ ! "$H" ] && {
         COLS=$(($(tput cols) / 2))
         LINS=$(($(tput lines) - 2))
@@ -73,75 +52,92 @@ FPID="$F-pid"
     }
 
     if [ "$PV_TYPE" = text ]; then
-        identify -format '%w\n%h' "$3" | {
-            read -r w
-            read -r h
-            chafa \
-                --fill=block \
-                --symbols=block \
-                -c 256 \
-                --size "$W"x"$H" \
-                "$3" 2>/dev/null
+        chafa \
+            --fill=block \
+            --symbols=block \
+            -c 256 \
+            --size "$W"x"$H" \
+            "$F" 2>/dev/null
+    else
+        [ ! -e "$FIFO" ] && return 1
+        path="$(printf '%s' "$F" | sed 's/\\/\\\\/g;s/"/\\"/g')"
+        printf '{ "action": "add", "identifier": "preview", "x": %d, "y": %d, "width": %d, "height": %d, "scaler": "contain", "scaling_position_x": 0.5, "scaling_position_y": 0.5, "path": "%s"}\n' "$X" "$Y" "$W" "$H" "$path" > "$FIFO"
+    fi
+}
+
+clear() {
+    [ "$PV_TYPE" = text ] && return 0
+    [ ! -e "$FIFO" ] && return 1
+    printf '{"action": "remove", "identifier": "preview"}\n' > "$FIFO"
+}
+
+end() {
+    [ "$PV_TYPE" = text ] && return 0
+    clear
+    [ -f "$FPID" ] &&
+        PID=$(cat "$FPID") &&
+        rm -f "$FPID" &&
+        pkill -TERM -P "$PID"
+    rm -f "$FIFO"
+}
+
+usage() {
+    BIN=$(basename "$0")
+    echo "usage: $BIN [--listen id] [--add id picture [x y w h]] [--clear id] [--end id] [--alive id] [--toggle] [--enabled]"
+    echo
+    echo "Example usage:"
+    echo "$ stpvimg --listen 0 &"
+    echo "$ stpvimg --add 0 $HOME/1.png"
+    echo "$ stpvimg --add 0 $HOME/2.png 0 10 20 20"
+    echo "$ stpvimg --clear 0"
+    echo "$ stpvimg --end 0"
+    return 1
+}
+
+main() {
+    [ "$PV_IMAGE_ENABLED" = 0 ] || [ -f "$TOGGLE" ] &&
+        return 1
+
+    # if no display server
+    [ -n "$DISPLAY" ] || PV_TYPE=text
+
+    # ueberzug not supported for wayland
+    [ -n "$WAYLAND_DISPLAY" ] ||
+        [ "$XDG_SESSION_TYPE" = 'wayland' ] &&
+            PV_TYPE=text
+
+    if [ "$PV_TYPE" = text ]; then
+        command -v chafa >/dev/null || {
+            >&2 echo 'chafa must be installed'
+            return 1
         }
     else
-        [ ! -e "$F" ] && exit
-        echo "$X $Y $W $H $3" >> "$F"
+        command -v ueberzug >/dev/null || {
+            >&2 echo 'ueberzug must be installed'
+            return 1
+        }
     fi
-    exit 0
+
+    CMD="$1"
+    ID="$2"
+    shift 2 2>/dev/null
+
+    # the fifo
+    FIFO="/tmp/stpvimgfifo$ID"
+
+    # pid of this listener
+    FPID="$FIFO-pid"
+
+    case "$CMD" in
+        --listen)  listen "$@" ;;
+        --add)     add    "$@" ;;
+        --clear)   clear       ;;
+        --end)     end         ;;
+        --alive)   isalive     ;;
+        --toggle)  toggle      ;;
+        --enabled) isenabled   ;;
+        *)         usage       ;;
+    esac
 }
 
-# other options are meaningless in text mode
-[ "$PV_TYPE" = text ] && exit 0
-
-# check if is alive
-[ "$1" = '--alive' ] && {
-    [ -e "$F" ]
-    exit
-}
-
-# clear without exiting
-[ "$1" = '--clear' ] && {
-    [ ! -e "$F" ] && exit
-    echo '' >> "$F"
-    exit 0
-}
-
-# exit
-[ "$1" = '--end' ] && {
-    [ ! -e "$F" ] && exit
-    echo '0 0 0 0 END' > "$F"
-    { # in case for whatever reason the listenor does not die
-        sleep .1
-        PID=$(cat "$FPID")
-        rm -f "$F" "$FPID"
-        pkill -TERM -P "$PID"
-    } 2>/dev/null &
-    exit 0
-}
-
-# continue and create the listener
-[ "$1" = '--listen' ] || printerr
-
-# if already listening, ignore
-[ -e "$F" ] && exit
-
-mkfifo "$F"
-echo $$ > "$FPID"
-
-source "`ueberzug library`"
-
-tail -f "$F" | {
-    while true; do
-        if read x y w h file; then
-            [ "$file" = 'END' ] && exit
-            ImageLayer::remove [identifier]="img0"
-            #echo ">>> $x $y $w $h $file"
-            [ -f "$file" ] && {
-                ImageLayer::add [identifier]="img0" \
-                                [path]="$file" \
-                                [x]="$x" [y]="$y" \
-                                [max_width]="$w" [max_height]="$h"
-            }
-        fi
-    done
-} | ImageLayer
+main "$@"
