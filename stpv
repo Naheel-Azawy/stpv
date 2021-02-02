@@ -1,6 +1,4 @@
-#!/bin/bash
-
-IFS=$'\n'
+#!/bin/sh
 
 # Meanings of exit codes:
 # code | meaning    | action of ranger
@@ -20,8 +18,7 @@ end() {
 
 usage() {
     BIN=$(basename "$0")
-    >&2 echo -e "usage: $BIN FILE [ W H X Y ] [ ID ]\n" \
-        "      $BIN --clear ID"
+    >&2 printf "usage: %s [--clear] [FILE] [ W H X Y ] [ ID ]\n" "$BIN"
     exit 1
 }
 
@@ -130,7 +127,7 @@ handle_extension() {
 }
 
 handle_mime() {
-    local mimetype="${1}"
+    mimetype="${1}"
     case "${mimetype}" in
         # Directory
         inode/directory)
@@ -197,10 +194,10 @@ handle_mime() {
 
 handle_image() {
     [ -e "${IMAGE_CACHE_PATH}" ] &&
-        [ "${IMAGE_CACHE_PATH}" -nt "${FILE_PATH}" ] && return
+        stest -q -n "${FILE_PATH}" "${IMAGE_CACHE_PATH}" && return
     mkdir -p "$IMAGE_CACHE_DIR"
 
-    local mimetype="${1}"
+    mimetype="${1}"
     case "${mimetype}" in
         # Image
         image/*) ;; # will be converted below
@@ -279,7 +276,7 @@ real_main() {
     MAX_IMG_CACHE_H=1080
     PREFER_TEXT=1
 
-    source "$HOME/.config/stpv/config.sh" 2>/dev/null
+    . "$HOME/.config/stpv/config.sh" 2>/dev/null
 
     [ $# = 0 ] || [ "$1" = -h ] || [ "$1" = --help ] && usage
 
@@ -364,7 +361,7 @@ main() {
             count=$((count+1))
             sleep .1
         done
-        kill $! &>/dev/null
+        kill $! >/dev/null 2>/dev/null
     fi
 }
 
