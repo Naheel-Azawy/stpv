@@ -45,11 +45,14 @@ listen() {
 
 add() {
     F="$1"; X="$2"; Y="$3"; W="$4"; H="$5"
-    [ ! "$X" ] || [ ! "$Y" ] || [ ! "$W" ] || [ ! "$H" ] && {
-        COLS=$(($(tput cols) / 2))
-        LINS=$(($(tput lines) - 2))
-        X="$COLS"; Y="1"; W="$COLS"; H="$LINS"
-    }
+    if [ ! "$X" ] || [ ! "$Y" ] || [ ! "$W" ] || [ ! "$H" ]; then
+        X=0; Y=0
+        W=$(tput cols)
+        H=$(tput lines)
+    else
+        # sometimes to goes a bit beyond the line below
+        H=$((H - 1))
+    fi
 
     if [ "$PV_TYPE" = text ]; then
         chafa \
