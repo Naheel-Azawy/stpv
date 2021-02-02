@@ -27,17 +27,19 @@
      stpvimg --end $ID
     #+end_src
 
-*** Integration with [[https://github.com/gokcehan/lf][LF]]
-    Note: LF now does not support image previews with this thing. If you need to experiment with it right now go for this [[https://github.com/Naheel-Azawy/lf/tree/imgpv][FORK]] under 'imgpv' branch.
-    On lfrc:
+*** Integration with [[https://github.com/gokcehan/lf][lf]]
+    lf now support image previews
+    add to lfrc:
     #+begin_src shell 
      set previewer stpv
+     set cleaner stpvimgclr
     #+end_src
 
     And launch LF like this (probably make a shell function for it like lfcd. [[https://github.com/Naheel-Azawy/naheel-dotfiles/blob/master/configs/fish-config.fish][HERE]] is mine):
     #+begin_src shell 
       fid="$(mktemp)"
-      lf -command '$printf $id > '"$fid"'; stpvimg --listen $id &' -last-dir-path="$tmp" "$@"
+      lf -command '&printf $id > '"$fid"'
+      &stpvimg --listen $id' -last-dir-path="$tmp" "$@"
       stpvimg --end "$(cat $fid)"
       rm $fid
     #+end_src

@@ -11,7 +11,7 @@
 end() {
     case "$1" in
         2) cat "${FILE_PATH}"; exit 0;;
-        5) exit 0;;
+        5) exit 5;;
         *) exit "$@";;
     esac
 }
@@ -301,9 +301,8 @@ real_main() {
         usage
     fi
 
-    if [ $# -ge 6 ]; then
-        ID="$6"
-    fi
+    [ $# -ge 6 ] && ID="$6"
+    [ "$id" ] && ID="$id"
 
     [ ! "$ID" ] && ID=-1
 
@@ -355,13 +354,14 @@ main() {
         # not so light... Keep in mind `convert` runs a lot in
         # here... So, this will save your life and keep your
         # machine safe!
-        "$0" --real "$@" &
+        real_main "$@" &
         count=0
-        while [ $count -lt 5 ] && [ "$(jobs)" ]; do
+        while [ $count -lt 5 ] && kill -0 $! 2>/dev/null; do
             count=$((count+1))
             sleep .1
         done
         kill $! >/dev/null 2>/dev/null
+        return 1 # TODO: return the real return value from real_main
     fi
 }
 

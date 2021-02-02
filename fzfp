@@ -25,7 +25,7 @@ elif [ "$W" -gt 52 ] || [ "$H" -gt 13 ]; then
         W=$((COLS - 2))
         H=$((((LINS - 1) / 2) - 2))
     fi
-    PV+=(--preview "stpv {} $H $W $X $Y $ID")
+    PV+=(--preview "stpv {} $W $H $X $Y $ID")
 fi
 
 if [ "$IMG" = 1 ]; then

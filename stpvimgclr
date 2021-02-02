@@ -1,2 +1,2 @@
 #!/bin/sh
-exec stpv --clear "$1"
+exec stpv --clear "$id"
