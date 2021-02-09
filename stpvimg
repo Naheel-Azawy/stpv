@@ -4,7 +4,7 @@ TOGGLE="$HOME/.config/stpv/noimgpv"
 CONFIG="$HOME/.config/stpv/config.sh"
 
 PV_IMAGE_ENABLED=1
-PV_TYPE=text
+PV_TYPE=img
 . "$CONFIG" 2>/dev/null
 
 CMD=; ID=; FIFO=; FPID=
@@ -29,6 +29,15 @@ isalive() {
 
 listen() {
     [ "$PV_TYPE" = text ] && return 0
+
+    # cleanup any dead listeners if any
+    for f in /tmp/stpvimgfifo*-pid; do
+        pid=$(cat "$f")
+        ppid=$(ps -h -p "$pid" -o ppid | xargs)
+        if [ "$ppid" = 1 ]; then
+            kill "$pid"
+        fi
+    done
 
     # if already listening, ignore
     [ -e "$FIFO" ] && return 0
