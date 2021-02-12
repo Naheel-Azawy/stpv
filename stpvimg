@@ -118,17 +118,8 @@ main() {
         [ "$XDG_SESSION_TYPE" = 'wayland' ] &&
             PV_TYPE=text
 
-    if [ "$PV_TYPE" = text ]; then
-        command -v chafa >/dev/null || {
-            >&2 echo 'chafa must be installed'
-            return 1
-        }
-    else
-        command -v ueberzug >/dev/null || {
-            >&2 echo 'ueberzug must be installed'
-            return 1
-        }
-    fi
+    command -v ueberzug >/dev/null || PV_TYPE=text
+    command -v chafa >/dev/null || return 1
 
     CMD="$1"
     ID="$2"
