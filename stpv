@@ -193,6 +193,7 @@ handle_mime() {
 }
 
 handle_image() {
+    # TODO: something wrong here
     [ -e "${IMAGE_CACHE_PATH}" ] &&
         stest -q -n "${FILE_PATH}" "${IMAGE_CACHE_PATH}" && return
     mkdir -p "$IMAGE_CACHE_DIR"
@@ -257,6 +258,13 @@ handle_image() {
     }
 }
 
+handle_proc() {
+    if echo "$REAL_FILE_PATH" | grep -q '^/proc/'; then
+        cat "$FILE_PATH"
+        end 0
+    fi
+}
+
 handle_fallback() {
     echo '----- File Type Classification -----' && file --dereference --brief -- "${FILE_PATH}"
     end 1
@@ -265,8 +273,7 @@ handle_fallback() {
 handle_link() {
     if test -L "$FILE_PATH"; then
         printf '\033[1m\033[36mSymbolic link to\033[0m ->\n'
-        FILE_PATH=$(realpath "$FILE_PATH")
-        printf '\033[1m\033[34m%s\033[0m\n' "$FILE_PATH"
+        printf '\033[1m\033[34m%s\033[0m\n' "$REAL_FILE_PATH"
         echo
     fi
 }
@@ -288,6 +295,7 @@ real_main() {
     fi
 
     FILE_PATH="$1"
+    REAL_FILE_PATH=$(realpath "$FILE_PATH")
 
     if [ $# -ge 5 ]; then
         W="$2"; H="$3"; X="$4"; Y="$5"
@@ -339,6 +347,7 @@ real_main() {
         [ "$ID" ] && stpvimg --clear "$ID"
         handle_extension
         handle_mime "${MIMETYPE}"
+        handle_proc
         handle_fallback
     } #| fribidi
 
