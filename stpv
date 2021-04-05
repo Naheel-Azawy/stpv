@@ -29,12 +29,12 @@ colorize_src() {
     if [ "$1" = "--md" ]; then
         shift
         bat --color always --style plain --paging never --language markdown \
-            --terminal-width "$W" --wrap character -- "$@" && return 0
+            --terminal-width "$W" --wrap character -- "$@" 2>/dev/null && return 0
         highlight --replace-tabs=4 --out-format=ansi \
                   --style='pablo' --force markdown -- "$@" 2>/dev/null && return 0
     else
         bat --color always --style plain --paging never \
-            --terminal-width "$W" --wrap character -- "$@" && return 0
+            --terminal-width "$W" --wrap character -- "$@" 2>/dev/null && return 0
         highlight --replace-tabs=4 --out-format=ansi \
                   --style='pablo' --force -- "$@" 2>/dev/null && return 0
     fi
