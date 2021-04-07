@@ -52,6 +52,11 @@ listen() {
     tail -f "$FIFO" | ueberzug layer
 }
 
+fifo_open() {
+    dd oflag=nonblock conv=notrunc,nocreat count=0 of="$1" \
+       >/dev/null 2>/dev/null
+}
+
 add() {
     F="$1"; X="$2"; Y="$3"; W="$4"; H="$5"
     if [ ! "$X" ] || [ ! "$Y" ] || [ ! "$W" ] || [ ! "$H" ]; then
@@ -72,15 +77,18 @@ add() {
             "$F" 2>/dev/null
     else
         [ ! -e "$FIFO" ] && return 1
-        path="$(printf '%s' "$F" | sed 's/\\/\\\\/g;s/"/\\"/g')"
-        printf '{ "action": "add", "identifier": "preview", "x": %d, "y": %d, "width": %d, "height": %d, "scaler": "contain", "scaling_position_x": 0.5, "scaling_position_y": 0.5, "path": "%s"}\n' "$X" "$Y" "$W" "$H" "$path" > "$FIFO"
+        fifo_open "$FIFO" && {
+            path="$(printf '%s' "$F" | sed 's/\\/\\\\/g;s/"/\\"/g')"
+            printf '{ "action": "add", "identifier": "preview", "x": %d, "y": %d, "width": %d, "height": %d, "scaler": "contain", "scaling_position_x": 0.5, "scaling_position_y": 0.5, "path": "%s"}\n' "$X" "$Y" "$W" "$H" "$path" > "$FIFO"
+        }
     fi
 }
 
 clear() {
     [ "$PV_TYPE" = text ] && return 0
     [ ! -e "$FIFO" ] && return 1
-    printf '{"action": "remove", "identifier": "preview"}\n' > "$FIFO"
+    fifo_open "$FIFO" &&
+        printf '{"action": "remove", "identifier": "preview"}\n' > "$FIFO"
 }
 
 end() {
