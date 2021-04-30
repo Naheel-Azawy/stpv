@@ -36,6 +36,7 @@ IMAGE_CACHE_DIR="$HOME/.cache/stpv"
 PV_IMAGE_ENABLED=
 STPV_NO_IMG=
 PREFER_TEXT=
+DARK_DOCS=
 
 ID=
 FILE_PATH=
@@ -47,6 +48,7 @@ IMAGE_CACHE_PATH=
 FILE_EXTENSION=
 FILE_EXTENSION_LOWER=
 MIMETYPE=
+IS_DOC=
 
 usage() {
     BIN=$(basename "$0")
@@ -291,11 +293,15 @@ handle_image() {
             WIDTH="$MAX_IMG_CACHE_W"
         fi
 
-        convert "$CONV_FILE" \
-                -auto-orient \
-                -resize "${WIDTH}x${HEIGHT}" \
-                -define jpeg:extent="$MAX_IMG_CACHE_SIZE" \
-                "${IMAGE_CACHE_PATH}"
+        cmd="convert '$CONV_FILE'"
+        cmd="$cmd -auto-orient"
+        cmd="$cmd -resize ${WIDTH}x${HEIGHT}"
+        [ -n "$IS_DOC" ] && [ -n "$DARK_DOCS" ] &&
+            cmd="$cmd -channel RGB -negate"
+        cmd="$cmd -define jpeg:extent=$MAX_IMG_CACHE_SIZE"
+        cmd="$cmd '$IMAGE_CACHE_PATH'"
+
+        eval "$cmd"
 
     }
 }
@@ -374,7 +380,8 @@ real_main() {
 
     case "$MIMETYPE" in # if text is preferred for documents
         application/pdf|application/*office*|application/ms*|application/vnd.ms-*)
-            [ "$PREFER_TEXT" ] && PV_IMAGE_ENABLED='';;
+            [ "$PREFER_TEXT" ] && PV_IMAGE_ENABLED=''
+            IS_DOC=1;;
     esac
 
     {

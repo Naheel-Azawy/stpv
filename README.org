@@ -27,6 +27,9 @@
      stpvimg --end $ID
     #+end_src
 
+*** Integration with [[https://github.com/Naheel-Azawy/fmz][fmz]]
+    ~stpv~ is already integrated with ~fmz~. Just install ~stpv~ and ~fmz~ will use it.
+
 *** Integration with [[https://github.com/gokcehan/lf][lf]]
     lf now support image previews. All what is needed is to add the following to lfrc:
     #+begin_src shell 
@@ -51,6 +54,7 @@
      PV_IMAGE_ENABLED=1
      PV_TYPE=img
      PREFER_TEXT=
+     DARK_DOCS=1
    #+END_SRC
    P.S. use any string for true, leave empty for false
 
