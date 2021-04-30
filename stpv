@@ -37,6 +37,7 @@ PV_IMAGE_ENABLED=
 STPV_NO_IMG=
 PREFER_TEXT=
 DARK_DOCS=
+SAFE=1
 
 ID=
 FILE_PATH=
@@ -327,9 +328,13 @@ handle_link() {
     fi
 }
 
-real_main() {
+load_config() {
     mkdir -p "$CFG_DIR"
     [ -f "$CFG_FILE" ] && . "$CFG_FILE"
+}
+
+real_main() {
+    load_config
 
     [ $# = 0 ] || [ "$1" = -h ] || [ "$1" = --help ] && usage
 
@@ -405,27 +410,31 @@ real_main() {
 }
 
 main() {
+    load_config
     if [ "$1" = '--eval' ]; then
         shift
         "$@"
     elif [ "$1" = '--real' ]; then
         shift
         real_main "$@"
-    else
+    elif [ -n "$SAFE" ]; then
         # Because this script is expected to run inside a file
         # manager. Now imagine scrolling over lots of files
         # quickly. This will create tons of processes that are
         # not so light... Keep in mind `convert` runs a lot in
         # here... So, this will save your life and keep your
         # machine safe!
-        real_main "$@" # &
-        # count=0
-        # while [ $count -lt 10 ] && kill -0 $! 2>/dev/null; do
-        #     count=$((count+1))
-        #     sleep .1
-        # done
-        # kill $! >/dev/null 2>/dev/null
-        # return 1 # TODO: return the real return value from real_main
+        real_main "$@" &
+        real_pid=$!
+        count=0
+        while [ $count -lt 500 ] && kill -0 $real_pid 2>/dev/null; do
+            count=$((count+1))
+            sleep .01
+        done
+        ps -o pid= --ppid $real_pid | xargs kill >/dev/null 2>/dev/null
+        wait $real_pid
+    else
+        real_main "$@"
     fi
 }
 
