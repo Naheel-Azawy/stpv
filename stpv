@@ -1,20 +1,52 @@
 #!/bin/sh
 
+# Copyright (C) 2019-present naheel-azawy
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 # Meanings of exit codes:
 # code | meaning    | action of ranger
 # -----+------------+-------------------------------------------
 # 0    | success    | Display stdout as preview
 # 1    | no preview | Display no preview at all
-# 2    | plain text | Display the plain content of the file
 # 5    | image      | Do not display anything nor cache output
 
-end() {
-    case "$1" in
-        2) cat "${FILE_PATH}"; exit 0;;
-        5) exit 5;;
-        *) exit "$@";;
-    esac
-}
+PV_IMAGE_ENABLED=1
+MAX_IMG_CACHE_SIZE=300kb
+MAX_IMG_CACHE_W=1920
+MAX_IMG_CACHE_H=1080
+PREFER_TEXT=1
+[ "$XDG_CONFIG_HOME" ] ||
+    XDG_CONFIG_HOME="$HOME/.config"
+CFG_DIR="$XDG_CONFIG_HOME/stpv"
+CFG_FILE="$CFG_DIR/config.sh"
+IMAGE_CACHE_DIR="$HOME/.cache/stpv"
+
+PV_IMAGE_ENABLED=
+STPV_NO_IMG=
+PREFER_TEXT=
+
+ID=
+FILE_PATH=
+W=70 ; H=10
+X=0  ; Y=0
+
+IMAGE_CACHE_HASH=
+IMAGE_CACHE_PATH=
+FILE_EXTENSION=
+FILE_EXTENSION_LOWER=
+MIMETYPE=
 
 usage() {
     BIN=$(basename "$0")
@@ -22,9 +54,16 @@ usage() {
     exit 1
 }
 
+newer_than() {
+    [ -e "$1" ] && [ -e "$2" ] && {
+        res=$(find -L "$1" -prune -newer "$2" -exec echo . \;)
+        [ -n "$res" ]
+    }
+}
+
 colorize_src() {
     if [ "$( stat --printf='%s' -- "${FILE_PATH}" )" -gt 262143 ]; then # > 256KiB
-        end 2
+        cat "$FILE_PATH"
     fi
     if [ "$1" = "--md" ]; then
         shift
@@ -41,9 +80,9 @@ colorize_src() {
 }
 
 view_pandoc() {
-    text=$(pandoc "$1" -t markdown_github+yaml_metadata_block --columns="$W" -s)
-    echo "$text" | mdcat && end 0
-    echo "$text" | colorize_src --md && end 0
+    text=$(pandoc "$1" -t gfm+yaml_metadata_block --columns="$W" -s)
+    echo "$text" | mdcat 2>/dev/null && return 0
+    echo "$text" | colorize_src --md && return 0
 }
 
 handle_extension() {
@@ -53,65 +92,65 @@ handle_extension() {
             rpm|rz|t7z|tar|tbz|tbz2|tgz|tlz|txz|tZ|tzo|war|xpi|xz|Z|zip)
             # JSON
             if echo "$FILE_PATH" | grep -Eq '.+\.json\.xz$'; then
-                xzcat "${FILE_PATH}" | jq -C . && end 0
+                xzcat "${FILE_PATH}" | jq -C . && return 0
             elif echo "$FILE_PATH" | grep -Eq '.+\.el\.gz$'; then
                 zcat "${FILE_PATH}" > "/tmp/$$.el" &&
                     colorize_src "/tmp/$$.el" &&
-                    rm -f "/tmp/$$.el" && end 0
+                    rm -f "/tmp/$$.el" && return  0
             else # Others
-                atool --list -- "${FILE_PATH}" && end 0
-                bsdtar --list --file "${FILE_PATH}" && end 0
+                atool --list -- "${FILE_PATH}" && return 0
+                bsdtar --list --file "${FILE_PATH}" && return 0
             fi
-            end 1;;
+            return 1;;
         rar)
             # Avoid password prompt by providing empty password
-            unrar lt -p- -- "${FILE_PATH}" && end 0
-            end 1;;
+            unrar lt -p- -- "${FILE_PATH}" && return 0
+            return 1;;
         7z|iso)
             # Avoid password prompt by providing empty password
-            7z l -p -- "${FILE_PATH}" && end 0
-            end 1;;
+            7z l -p -- "${FILE_PATH}" && return 0
+            return 1;;
 
         # PDF
         pdf)
             # Preview as text conversion
-            pdftotext -layout -l 10 -nopgbrk -q -- "${FILE_PATH}" - && end 0
-            mutool draw -F txt -i -- "${FILE_PATH}" 1-10 && end 0
-            exiftool "${FILE_PATH}" && end 0
-            end 1;;
+            pdftotext -layout -l 10 -nopgbrk -q -- "${FILE_PATH}" - && return 0
+            mutool draw -F txt -i -- "${FILE_PATH}" 1-10 && return 0
+            exiftool "${FILE_PATH}" && return 0
+            return 1;;
 
         # EPUB
         epub)
-            epub2txt "${FILE_PATH}" && end 0
-            end 1;;
+            epub2txt "${FILE_PATH}" && return 0
+            return 1;;
 
         # BitTorrent
         torrent)
-            transmission-show -- "${FILE_PATH}" && end 0
-            end 1;;
+            transmission-show -- "${FILE_PATH}" && return 0
+            return 1;;
 
         # OpenDocument
         odt|ods|odp|sxw)
             # Preview as text conversion
-            odt2txt "${FILE_PATH}" && end 0
-            end 1;;
+            odt2txt "${FILE_PATH}" && return 0
+            return 1;;
 
         # HTML
         htm|html|xhtml)
             # Preview as text conversion
-            w3m -dump "${FILE_PATH}" && end 0
-            lynx -dump -- "${FILE_PATH}" && end 0
-            elinks -dump "${FILE_PATH}" && end 0
-            view_pandoc "${FILE_PATH}" && end 0
-            ;; # Continue with next handler on failure
+            w3m -dump "${FILE_PATH}" && return 0
+            lynx -dump -- "${FILE_PATH}" && return 0
+            elinks -dump "${FILE_PATH}" && return 0
+            view_pandoc "${FILE_PATH}" && return 0
+            ;;
 
         # JSON
         json)
-            jq -C . "${FILE_PATH}" && end 0
-            ;; # Continue with next handler on failure
+            jq -C . "${FILE_PATH}" && return 0;;
+
+        # MarkDown
         md|rst)
-            view_pandoc "${FILE_PATH}" && end 0
-            ;;
+            view_pandoc "${FILE_PATH}" && return 0;;
 
         # CSV
         csv)
@@ -121,9 +160,10 @@ handle_extension() {
                 pandoc "${FILE_PATH}" -o "$TMP_FILE_PATH" 2>/dev/null \
                     && cat "$TMP_FILE_PATH" \
                     && rm -f "$TMP_FILE_PATH" \
-                    && end 0
+                    && return 0
             };;
     esac
+    return 1
 }
 
 handle_mime() {
@@ -131,43 +171,43 @@ handle_mime() {
     case "${mimetype}" in
         # Directory
         inode/directory)
-            ls --color --group-directories-first "${FILE_PATH}" && end 0
-            end 1;;
+            ls --color --group-directories-first "${FILE_PATH}" && return 0
+            return 1;;
 
         # Diff
         text/x-diff)
             # use the user-specified git diff pager if it is set
             if git config core.pager >/dev/null; then
-                eval "$(git config core.pager)" < "${FILE_PATH}" && end 0
+                eval "$(git config core.pager)" < "${FILE_PATH}" && return 0
             fi
             # delta and diff-so-fancy are fancy diff pagers.
-            delta "${FILE_PATH}" && end 0
-            diff-so-fancy "${FILE_PATH}" && end 0
+            delta "${FILE_PATH}" && return 0
+            diff-so-fancy "${FILE_PATH}" && return 0
             # colorize_src uses highlight or bat, both of which support
             # diff/patch syntax.
-            colorize_src "${FILE_PATH}" && end 0
-            end 1;;
+            colorize_src "${FILE_PATH}" && return 0
+            return 1;;
 
         # Text
         text/* | */xml | */json | application/javascript | application/x-elc)
             # Syntax highlight
-            colorize_src "${FILE_PATH}" && end 0
-            end 2;;
+            colorize_src "$FILE_PATH" && return 0
+            cat "$FILE_PATH";;
 
         # Image
         image/*)
-            exiftool "${FILE_PATH}" && end 0
-            end 1;;
+            exiftool "${FILE_PATH}" && return 0
+            return 1;;
 
         # Video
         video/*)
-            exiftool "${FILE_PATH}" && end 0
-            end 1;;
+            exiftool "${FILE_PATH}" && return 0
+            return 1;;
 
         # Audio
         audio/*|application/octet-stream)
-            exiftool "${FILE_PATH}" && end 0
-            end 1;;
+            exiftool "${FILE_PATH}" && return 0
+            return 1;;
 
         # Office files
         application/*office*|application/ms*|application/vnd.ms-*)
@@ -176,27 +216,29 @@ handle_mime() {
             pandoc "${FILE_PATH}" -o "$TMP_FILE_PATH" 2>/dev/null \
                 && cat "$TMP_FILE_PATH" \
                 && rm -f "$TMP_FILE_PATH" \
-                && end 0
+                && return 0
             libreoffice \
                 --headless \
                 --convert-to txt "${FILE_PATH}" \
                 --outdir /tmp >/dev/null \
                 && cat "$TMP_FILE_PATH" \
                 && rm -f "$TMP_FILE_PATH" \
-                && end 0
-            end 1;;
+                && return 0
+            return 1;;
 
         # False CSV: Many text files are falsely identified with CSV mime type. So we just cat them
         application/csv)
-            end 2;;
+            cat "$FILE_PATH";;
     esac
+    return 1
 }
 
 handle_image() {
-    # TODO: something wrong here
-    [ -e "${IMAGE_CACHE_PATH}" ] &&
-        stest -q -n "${FILE_PATH}" "${IMAGE_CACHE_PATH}" && return
+    newer_than "${IMAGE_CACHE_PATH}" "${FILE_PATH}" &&
+        return
+
     mkdir -p "$IMAGE_CACHE_DIR"
+    rm -f "$IMAGE_CACHE_PATH"
 
     mimetype="${1}"
     case "${mimetype}" in
@@ -259,33 +301,29 @@ handle_image() {
 }
 
 handle_proc() {
-    if echo "$REAL_FILE_PATH" | grep -q '^/proc/'; then
+    if echo "$FILE_PATH" | grep -q '^/proc/'; then
         cat "$FILE_PATH"
-        end 0
+    else
+        return 1
     fi
 }
 
 handle_fallback() {
-    echo '----- File Type Classification -----' && file --dereference --brief -- "${FILE_PATH}"
-    end 1
+    echo '----- File Type Classification -----' &&
+        file --dereference --brief -- "$FILE_PATH"
 }
 
 handle_link() {
     if test -L "$FILE_PATH"; then
         printf '\033[1m\033[36mSymbolic link to\033[0m ->\n'
-        printf '\033[1m\033[34m%s\033[0m\n' "$REAL_FILE_PATH"
+        printf '\033[1m\033[34m%s\033[0m\n' "$FILE_PATH"
         echo
     fi
 }
 
 real_main() {
-    PV_IMAGE_ENABLED=1
-    MAX_IMG_CACHE_SIZE=300kb
-    MAX_IMG_CACHE_W=1920
-    MAX_IMG_CACHE_H=1080
-    PREFER_TEXT=1
-
-    . "$HOME/.config/stpv/config.sh" 2>/dev/null
+    mkdir -p "$CFG_DIR"
+    [ -f "$CFG_FILE" ] && . "$CFG_FILE"
 
     [ $# = 0 ] || [ "$1" = -h ] || [ "$1" = --help ] && usage
 
@@ -295,7 +333,13 @@ real_main() {
     fi
 
     FILE_PATH="$1"
-    REAL_FILE_PATH=$(realpath "$FILE_PATH")
+    FILE_PATH=$(realpath "$FILE_PATH")
+
+    # prevent caching caches
+    echo "$FILE_PATH" | grep -q "^$IMAGE_CACHE_DIR" && {
+        echo 'stpv cache file'
+        return
+    }
 
     if [ $# -ge 5 ]; then
         W="$2"; H="$3"; X="$4"; Y="$5"
@@ -313,16 +357,12 @@ real_main() {
 
     [ $# -ge 6 ] && ID="$6"
     [ "$id" ] && ID="$id"
-
     [ ! "$ID" ] && ID=-1
 
-    IMAGE_CACHE_DIR="$HOME/.cache/stpv"
-    IMAGE_CACHE_HASH=$(echo "$FILE_PATH" | sha1sum | awk '{print $1}')
+    IMAGE_CACHE_HASH=$(echo "$FILE_PATH" | md5sum - | cut -d ' ' -f1)
     IMAGE_CACHE_PATH="$IMAGE_CACHE_DIR/$IMAGE_CACHE_HASH.jpg"
-
     FILE_EXTENSION="${FILE_PATH##*.}"
     FILE_EXTENSION_LOWER=$(echo "$FILE_EXTENSION" | tr '[:upper:]' '[:lower:]')
-
     MIMETYPE=$(file --dereference --brief --mime-type -- "${FILE_PATH}")
 
     [ "$PV_IMAGE_ENABLED" ] &&
@@ -339,23 +379,29 @@ real_main() {
 
     {
         handle_link
-        [ "${PV_IMAGE_ENABLED}" ] &&
-            handle_image "${MIMETYPE}" &&
-            stpvimg --add "$ID" "${IMAGE_CACHE_PATH}" \
-                    "$X" "$Y" "$W" "$H" \
-                    2>/dev/null && end 5
+
+        if [ -n "$PV_IMAGE_ENABLED" ]; then
+            handle_image "$MIMETYPE" &&
+                stpvimg --add "$ID" "$IMAGE_CACHE_PATH" \
+                        "$X" "$Y" "$W" "$H" \
+                        2>/dev/null && return 5
+        fi
         [ "$ID" ] && stpvimg --clear "$ID"
-        handle_extension
-        handle_mime "${MIMETYPE}"
-        handle_proc
-        handle_fallback
+
+        handle_extension            ||
+            handle_mime "$MIMETYPE" ||
+            handle_proc             ||
+            handle_fallback         ||
+            return 1
     } #| fribidi
 
-    end 1
 }
 
 main() {
-    if [ "$1" = '--real' ]; then
+    if [ "$1" = '--eval' ]; then
+        shift
+        "$@"
+    elif [ "$1" = '--real' ]; then
         shift
         real_main "$@"
     else
@@ -365,14 +411,14 @@ main() {
         # not so light... Keep in mind `convert` runs a lot in
         # here... So, this will save your life and keep your
         # machine safe!
-        real_main "$@" &
-        count=0
-        while [ $count -lt 10 ] && kill -0 $! 2>/dev/null; do
-            count=$((count+1))
-            sleep .1
-        done
-        kill $! >/dev/null 2>/dev/null
-        return 1 # TODO: return the real return value from real_main
+        real_main "$@" # &
+        # count=0
+        # while [ $count -lt 10 ] && kill -0 $! 2>/dev/null; do
+        #     count=$((count+1))
+        #     sleep .1
+        # done
+        # kill $! >/dev/null 2>/dev/null
+        # return 1 # TODO: return the real return value from real_main
     fi
 }
 
