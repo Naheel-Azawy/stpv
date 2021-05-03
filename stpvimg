@@ -147,7 +147,9 @@ main() {
 
     CMD="$1"
     ID="$2"
-    shift 2 2>/dev/null
+
+    [ -n "$1" ] && shift
+    [ -n "$1" ] && shift
 
     # the fifo
     FIFO="/tmp/stpvimgfifo$ID"
