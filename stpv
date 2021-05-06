@@ -384,7 +384,11 @@ real_main() {
                 PV_IMAGE_ENABLED=''
 
     case "$MIMETYPE" in # if text is preferred for documents
-        application/pdf|application/*office*|application/ms*|application/vnd.ms-*)
+        application/pdf|\
+            application/*office*|\
+            application/ms*|\
+            application/vnd.ms-*|\
+            application/vnd.oasis.opendocument.*)
             [ "$PREFER_TEXT" ] && PV_IMAGE_ENABLED=''
             IS_DOC=1;;
     esac
