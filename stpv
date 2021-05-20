@@ -374,7 +374,10 @@ real_main() {
     IMAGE_CACHE_PATH="$IMAGE_CACHE_DIR/$IMAGE_CACHE_HASH.jpg"
     FILE_EXTENSION="${FILE_PATH##*.}"
     FILE_EXTENSION_LOWER=$(echo "$FILE_EXTENSION" | tr '[:upper:]' '[:lower:]')
-    MIMETYPE=$(file --dereference --brief --mime-type -- "${FILE_PATH}")
+    MIMETYPE=$(mimetype --dereference --brief --mimetype -- "${FILE_PATH}")
+    if [ "$?" -ne 0 ] || [ -z "$MIMETYPE" ]; then
+	    MIMETYPE=$(file --dereference --brief --mime-type -- "${FILE_PATH}")
+    fi
 
     [ "$PV_IMAGE_ENABLED" ] &&
         [ "$STPV_NO_IMG" = 1 ] ||
