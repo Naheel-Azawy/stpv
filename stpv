@@ -274,6 +274,20 @@ handle_image() {
                 --outdir "$CACHE_DIR" &&
                 mv "$TMP_FILE_PATH" "$IMAGE_CACHE_PATH";;
 
+        # Xounralpp files
+        application/x-xopp)
+            CACHE_DIR="${IMAGE_CACHE_PATH%/*}"
+            TMP_FILE_PATH="${FILE_PATH##*/}"
+            TMP_FILE_PATHBASE="${CACHE_DIR}/${TMP_FILE_PATH%.*}"
+            rm -f "${TMP_FILE_PATHBASE}.jpg"
+            rm -f "${TMP_FILE_PATHBASE}-"*".jpg"
+            xournalpp \
+                --create-img "${TMP_FILE_PATHBASE}.jpg" \
+                "${FILE_PATH}" &&
+		mv "${TMP_FILE_PATHBASE}.jpg" "$IMAGE_CACHE_PATH" ||
+		mv "${TMP_FILE_PATHBASE}-1.jpg" "$IMAGE_CACHE_PATH"
+            rm -f "${TMP_FILE_PATHBASE}-"*".jpg";;
+
         # Other types
         *) return 1;;
     esac && {
