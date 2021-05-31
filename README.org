@@ -3,11 +3,11 @@
 
   [[./screenshot.gif]]
 
-** Dependancy
+** Dependencies
    - [[https://github.com/seebye/ueberzug][ueberzug]] for image previews
    - Tons of things for other stuff...
 
-   Overall, it should fine without most dependancies, it will fallback to simpler previews. Check stpv to see all needed toys.
+   Overall, it should fine without most dependencies, it will fallback to simpler previews. Check stpv to see all needed toys.
 
 ** Usage
 *** stpv
