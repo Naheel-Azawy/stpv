@@ -192,7 +192,8 @@ handle_mime() {
             return 1;;
 
         # Text
-        text/* | */xml | */json | application/javascript | application/x-elc)
+        text/* | */xml | */json | application/javascript | application/x-elc |\
+            application/x-shellscript)
             # Syntax highlight
             colorize_src "$FILE_PATH" && return 0
             cat "$FILE_PATH";;
