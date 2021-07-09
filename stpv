@@ -51,9 +51,9 @@ FILE_EXTENSION_LOWER=
 MIMETYPE=
 IS_DOC=
 
-if [ $(which bat) ] ; then
+if which bat >/dev/null 2>&1; then
     BATCMD=bat
-elif [ $(which batcat) ] ; then
+elif which batcat >/dev/null 2>&1; then
     BATCMD=batcat
 else
     BATCMD=cat
