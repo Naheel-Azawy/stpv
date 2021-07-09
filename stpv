@@ -51,6 +51,14 @@ FILE_EXTENSION_LOWER=
 MIMETYPE=
 IS_DOC=
 
+if [ $(which bat) ] ; then
+    BATCMD=bat
+elif [ $(which batcat) ] ; then
+    BATCMD=batcat
+else
+    BATCMD=cat
+fi
+
 usage() {
     BIN=$(basename "$0")
     >&2 printf "usage: %s [--clear] [FILE] [ W H X Y ] [ ID ]\n" "$BIN"
@@ -70,12 +78,12 @@ colorize_src() {
     fi
     if [ "$1" = "--md" ]; then
         shift
-        bat --color always --style plain --paging never --language markdown \
+        $BATCMD --color always --style plain --paging never --language markdown \
             --terminal-width "$W" --wrap character -- "$@" 2>/dev/null && return 0
         highlight --replace-tabs=4 --out-format=ansi \
                   --style='pablo' --force markdown -- "$@" 2>/dev/null && return 0
     else
-        bat --color always --style plain --paging never \
+        $BATCMD --color always --style plain --paging never \
             --terminal-width "$W" --wrap character -- "$@" 2>/dev/null && return 0
         highlight --replace-tabs=4 --out-format=ansi \
                   --style='pablo' --force -- "$@" 2>/dev/null && return 0
