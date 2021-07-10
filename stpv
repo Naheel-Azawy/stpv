@@ -173,6 +173,10 @@ handle_extension() {
                     && rm -f "$TMP_FILE_PATH" \
                     && return 0
             };;
+
+        # NetCDF
+        nc)
+            myncdump -i "${FILE_PATH}" && return 0;;
     esac
     return 1
 }
