@@ -32,7 +32,6 @@ PREFER_TEXT=1
 CFG_DIR="$XDG_CONFIG_HOME/stpv"
 CFG_FILE="$CFG_DIR/config.sh"
 IMAGE_CACHE_DIR="$HOME/.cache/stpv"
-BATCMD=
 
 PV_IMAGE_ENABLED=
 STPV_NO_IMG=
@@ -70,27 +69,48 @@ newer_than() {
 }
 
 colorize_src() {
-    if [ "$( stat --printf='%s' -- "${FILE_PATH}" )" -gt 262143 ]; then # > 256KiB
-        cat "$FILE_PATH"
+    if [ "$( stat --printf='%s' -- "$1" )" -gt 262143 ]; then # > 256KiB
+        cat "$1"
     fi
+
+    if exists bat; then
+        BATCMD=bat
+    elif exists batcat; then
+        BATCMD=batcat
+    else
+        BATCMD=
+    fi
+
     if [ "$1" = "--md" ]; then
         shift
-        $BATCMD --color always --style plain --paging never --language markdown \
-            --terminal-width "$W" --wrap character -- "$@" 2>/dev/null && return 0
-        highlight --replace-tabs=4 --out-format=ansi \
-                  --style='pablo' --force markdown -- "$@" 2>/dev/null && return 0
+        if exits mdcat; then
+            mdcat "$1"
+        elif [ -n "$BATCMD" ]; then
+            $BATCMD --color always --style plain --paging never --language markdown \
+                    --terminal-width "$W" --wrap character -- "$@"
+        elif exists highlight; then
+            highlight --replace-tabs=4 --out-format=ansi \
+                      --style='pablo' --force markdown -- "$@"
+        else
+            cat
+        fi
     else
-        $BATCMD --color always --style plain --paging never \
-            --terminal-width "$W" --wrap character -- "$@" 2>/dev/null && return 0
-        highlight --replace-tabs=4 --out-format=ansi \
-                  --style='pablo' --force -- "$@" 2>/dev/null && return 0
+        if [ -n "$BATCMD" ]; then
+            $BATCMD --color always --style plain --paging never \
+                    --terminal-width "$W" --wrap character -- "$@"
+        elif exists highlight; then
+            highlight --replace-tabs=4 --out-format=ansi \
+                      --style='pablo' --force -- "$@"
+        else
+            cat "$1"
+        fi
     fi
 }
 
 view_pandoc() {
+    exists pandoc || return 1
     text=$(pandoc "$1" -t gfm+yaml_metadata_block --columns="$W" -s)
-    echo "$text" | mdcat 2>/dev/null && return 0
-    echo "$text" | colorize_src --md && return 0
+    echo "$text" | colorize_src --md
 }
 
 handle_extension() {
@@ -415,14 +435,6 @@ real_main() {
             [ "$PREFER_TEXT" ] && PV_IMAGE_ENABLED=''
             IS_DOC=1;;
     esac
-
-    if exists bat; then
-        BATCMD=bat
-    elif exists batcat; then
-        BATCMD=batcat
-    else
-        BATCMD=cat
-    fi
 
     {
         handle_link
