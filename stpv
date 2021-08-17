@@ -32,6 +32,7 @@ PREFER_TEXT=1
 CFG_DIR="$XDG_CONFIG_HOME/stpv"
 CFG_FILE="$CFG_DIR/config.sh"
 IMAGE_CACHE_DIR="$HOME/.cache/stpv"
+BATCMD=
 
 PV_IMAGE_ENABLED=
 STPV_NO_IMG=
@@ -51,18 +52,14 @@ FILE_EXTENSION_LOWER=
 MIMETYPE=
 IS_DOC=
 
-if [[ $(which bat) ]] ; then
-    BATCMD=bat
-elif [[ $(which batcat) ]] ; then
-    BATCMD=batcat
-else
-    BATCMD=cat
-fi
-
 usage() {
     BIN=$(basename "$0")
     >&2 printf "usage: %s [--clear] [FILE] [ W H X Y ] [ ID ]\n" "$BIN"
     exit 1
+}
+
+exists() {
+    command -v "$1" >/dev/null
 }
 
 newer_than() {
@@ -403,8 +400,8 @@ real_main() {
     fi
 
     [ "$PV_IMAGE_ENABLED" ] &&
-        [ "$STPV_NO_IMG" = 1 ] ||
-            ! command -v stpvimg >/dev/null ||
+        [ "$STPV_NO_IMG" = 1 ]  ||
+            ! exists stpvimg    ||
             ! stpvimg --enabled ||
             ! stpvimg --alive "$ID" &&
                 PV_IMAGE_ENABLED=''
@@ -418,6 +415,14 @@ real_main() {
             [ "$PREFER_TEXT" ] && PV_IMAGE_ENABLED=''
             IS_DOC=1;;
     esac
+
+    if exists bat; then
+        BATCMD=bat
+    elif exists batcat; then
+        BATCMD=batcat
+    else
+        BATCMD=cat
+    fi
 
     {
         handle_link
