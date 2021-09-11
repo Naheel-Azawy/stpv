@@ -270,6 +270,12 @@ handle_image() {
     rm -f "$IMAGE_CACHE_PATH"
 
     mimetype="${1}"
+
+    # special extentions
+    case "$FILE_EXTENSION_LOWER" in
+        stl) mimetype=stl ;;
+    esac
+
     case "${mimetype}" in
         # Image
         image/*) ;; # will be converted below
@@ -313,6 +319,27 @@ handle_image() {
 		mv "${TMP_FILE_PATHBASE}.jpg" "$IMAGE_CACHE_PATH" ||
 		mv "${TMP_FILE_PATHBASE}-1.jpg" "$IMAGE_CACHE_PATH"
             rm -f "${TMP_FILE_PATHBASE}-"*".jpg";;
+
+        # STL
+        stl)
+            size=512
+            tmpf="/tmp/__stpv_$$_stl"
+
+            {
+                printf 'import("'
+                printf '%s' "$FILE_PATH"
+                printf '");'
+            } > "$tmpf"
+
+            openscad \
+                -o "$tmpf.png" \
+                --imgsize=$size,$size \
+                "$tmpf" \
+                2>/dev/null
+
+            convert "$tmpf.png" "$tmpf.jpg"
+            mv "$tmpf.jpg" "$IMAGE_CACHE_PATH"
+            rm "$tmpf";;
 
         # Other types
         *) return 1;;
