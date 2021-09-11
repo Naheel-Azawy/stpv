@@ -378,13 +378,18 @@ real_main() {
 
     [ $# = 0 ] || [ "$1" = -h ] || [ "$1" = --help ] && usage
 
-    if [ $# -eq 2 ] && [ "$1" = '--clear' ]; then
+    if [ "$1" = '--clear' ]; then
         stpvimg --clear "$2"
         exit
     fi
 
     FILE_PATH="$1"
     FILE_PATH=$(realpath "$FILE_PATH")
+
+    [ -f "$FILE_PATH" ] || {
+        echo "ERROR: file '$FILE_PATH' not found"
+        return 1
+    }
 
     # prevent caching caches
     echo "$FILE_PATH" | grep -q "^$IMAGE_CACHE_DIR" && {

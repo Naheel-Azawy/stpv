@@ -24,6 +24,21 @@ PV_TYPE=img
 
 CMD=; ID=; FIFO=; FPID=
 
+exists() {
+    command -v "$1" >/dev/null
+}
+
+iswayland() {
+    [ -n "$WAYLAND_DISPLAY" ] ||
+        [ "$XDG_SESSION_TYPE" = 'wayland' ]
+}
+
+iskitty() {
+    # TODO: uncomment after fixing
+    # [ -n "$KITTY_PID" ]
+    false
+}
+
 toggle() {
     if [ -f "$TOGGLE" ]; then
         rm -f "$TOGGLE"
@@ -39,11 +54,12 @@ isenabled() {
 }
 
 isalive() {
-    [ -e "$FIFO" ]
+    iskitty || [ -e "$FIFO" ]
 }
 
 listen() {
     [ "$PV_TYPE" = text ] && return 0
+    iskitty && return 0
 
     # cleanup any dead listeners if any
     for f in /tmp/stpvimgfifo*-pid; do
@@ -91,6 +107,12 @@ add() {
             -c 256 \
             --size "$W"x"$H" \
             "$F" 2>/dev/null
+
+    elif iskitty; then
+        kitty +kitten icat \
+              --align left \
+              --place "${W}x${H}@${X}x${Y}" "$F" >/dev/tty
+
     else
         [ ! -e "$FIFO" ] && return 1
         fifo_open "$FIFO" && {
@@ -102,6 +124,10 @@ add() {
 
 clear() {
     [ "$PV_TYPE" = text ] && return 0
+
+    iskitty &&
+        kitty +kitten icat --clear >/dev/tty
+
     [ ! -e "$FIFO" ] && return 1
     fifo_open "$FIFO" &&
         printf '{"action": "remove", "identifier": "preview"}\n' > "$FIFO"
@@ -110,6 +136,7 @@ clear() {
 end() {
     [ "$PV_TYPE" = text ] && return 0
     clear
+    iskitty && return 0
     [ -f "$FPID" ] &&
         PID=$(cat "$FPID") &&
         rm -f "$FPID" &&
@@ -137,13 +164,13 @@ main() {
     # if no display server
     [ -n "$DISPLAY" ] || PV_TYPE=text
 
-    # ueberzug not supported for wayland
-    [ -n "$WAYLAND_DISPLAY" ] ||
-        [ "$XDG_SESSION_TYPE" = 'wayland' ] &&
-            PV_TYPE=text
+    if (iswayland || ! exists ueberzug) && iskitty; then
+        PV_TYPE=text
+    fi
 
-    command -v ueberzug >/dev/null || PV_TYPE=text
-    command -v chafa >/dev/null || return 1
+    if [ "$PV_TYPE" = text ] && ! exists chafa; then
+        return 1
+    fi
 
     CMD="$1"
     ID="$2"
