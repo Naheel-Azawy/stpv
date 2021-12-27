@@ -4,15 +4,37 @@
   [[./screenshot.gif]]
 
 ** Dependencies
-   - [[https://github.com/seebye/ueberzug][ueberzug]] for image previews
-   - Tons of things for other stuff...
+   - [[https://github.com/seebye/ueberzug][ueberzug]] of [[https://github.com/hpjansson/chafa/][chafa]] for image previews
+   - The following programs. Note that the names are the command names and not the package names
 
-   Overall, it should fine without most dependencies, it will fallback to simpler previews. Check stpv to see all needed toys.
+   | type        | cli program                      | image program     |
+   |-------------+----------------------------------+-------------------|
+   | directory   | ls                               | -                 |
+   | archive     | xzcat,zcat,atool,bsdtar          | -                 |
+   | rar         | unrar                            | -                 |
+   | 7z+iso      | 7z                               | -                 |
+   | html        | w3m,lynx,elinks,pandoc           | -                 |
+   | json        | jq,=text-source                  | -                 |
+   | markdown    | pandoc,=text-source              | -                 |
+   | csv         | pandoc,cat                       | -                 |
+   | diff        | delta,diff-so-fancy,=text-source | -                 |
+   | pdf         | pdftotext,mutool,exiftool        | pdftoppm          |
+   | epub        | epub2txt                         | -                 |
+   | text-source | mdcat,bat,highlight,cat          | -                 |
+   | image       | exiftool                         | convert           |
+   | video       | exiftool                         | ffmpegthumbnailer |
+   | audio       | exiftool                         | -                 |
+   | office      | pandoc,libreoffice               | libreoffice       |
+   | xounralpp   | -                                | xournalpp         |
+   | torrent     | transmission-show                | -                 |
+   | stl         | -                                | openscad+convert  |
+
+   Overall, it should fine without most dependencies, it will fallback to simpler previews.
 
 ** Usage
 *** stpv
     Note: stpvimg should be run first as mentioned below for image previews to work
-    #+begin_src shell 
+    #+begin_src shell
      stpv $FILE $H $W $X $Y $ID # all arguments except FILE are optional
      stpv --clear $ID # only if stpvimg is running
     #+end_src
@@ -32,32 +54,47 @@
 
 *** Integration with [[https://github.com/gokcehan/lf][lf]]
     lf now support image previews. All what is needed is to add the following to lfrc:
-    #+begin_src shell 
+    #+begin_src shell
      set previewer stpv
      set cleaner stpvimgclr
      &stpvimg --listen $id
     #+end_src
 
 *** Integration with [[https://github.com/junegunn/fzf][fzf]]
-    #+begin_src shell 
+    #+begin_src shell
       fzfp
     #+end_src
 
 ** Installation
-   #+begin_src shell 
+   #+begin_src shell
      sudo make install
    #+end_src
 
 ** Configuration
-   ~~/.config/stpv/config.sh~:
+   ~/.config/stpv/config.sh:
    #+BEGIN_SRC shell
-     PV_IMAGE_ENABLED=1
-     PV_TYPE=img
-     PREFER_TEXT=
-     DARK_DOCS=1
-     SAFE=1
+     PV_IMAGE_ENABLED=1 # show image previews when possible
+     PV_TYPE=img        # (img or text) where text shows image previews in the terminal
+     PREFER_TEXT=       # prefer text over images when displaying documents
+     DARK_DOCS=1        # invert documents preview color in image previews
+     SAFE=1             # kill itself if needed (check main for details)
    #+END_SRC
-   P.S. use any string for true, leave empty for false
+   P.S. use any string for true, leave empty for false.
+
+   Custom previews can be added as well.
+   However, if you think you wrote a nice previewer, pull requests are more than welcomes.
+   Check the main stpv file for more examples.
+
+   #+begin_src shell
+     #       function    type dep    dep-image
+     add_top handle_cows cows cowsay -
+     handle_cows() {
+         [ "$file_extension_lower" = moo ] ||
+             return "$RET_NO_MATCH"
+
+         cowsay < "$file_path"
+     }
+   #+end_src
 
 ** Video
    [[https://youtu.be/MXkjcgzILIc][https://youtu.be/MXkjcgzILIc]]
