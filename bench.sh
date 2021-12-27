@@ -21,4 +21,3 @@ run() {
 }
 
 run ./stpv
-run ./stpv-exp
