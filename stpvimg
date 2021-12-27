@@ -16,12 +16,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 TOGGLE="$HOME/.config/stpv/noimgpv"
-CONFIG="$HOME/.config/stpv/config.sh"
-
-PV_IMAGE_ENABLED=1
-PV_TYPE=img
-. "$CONFIG" 2>/dev/null
-
 CMD=; ID=; FIFO=; FPID=
 
 exists() {

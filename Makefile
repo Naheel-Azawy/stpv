@@ -8,6 +8,10 @@ install:
 	cp -f stpvimgclr $(DESTDIR)$(PREFIX)/bin/
 	cp -f fzfp $(DESTDIR)$(PREFIX)/bin/
 
+install-exp:
+	mkdir -p $(DESTDIR)$(PREFIX)/bin/
+	cp -f stpv-exp $(DESTDIR)$(PREFIX)/bin/stpv
+
 link:
 	mkdir -p $(DESTDIR)$(PREFIX)/bin/
 	ln -sf $(CWD)/stpv $(DESTDIR)$(PREFIX)/bin/

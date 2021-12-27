@@ -31,16 +31,18 @@ CFG_FILE="$CFG_DIR/config.sh"
 IMAGE_CACHE_DIR="$HOME/.cache/stpv"
 
 RET_NO_MATCH=10
+RET_FALLBACK=11
 MAX_IMG_CACHE_SIZE=300kb
 MAX_IMG_CACHE_W=1920
 MAX_IMG_CACHE_H=1080
 
 # ==== config ====
 
-PV_IMAGE_ENABLED=1
-PREFER_TEXT=
-DARK_DOCS=
-SAFE=1
+PV_IMAGE_ENABLED=1 # show image previews when possible
+PV_TYPE=img        # (img or text) where text shows image previews in the terminal
+PREFER_TEXT=       # prefer text over images when displaying documents
+DARK_DOCS=         # invert documents preview color in image previews
+SAFE=1             # kill itself if needed (check main for details)
 
 # ==== global parameters ====
 
@@ -56,6 +58,7 @@ file_extension_lower=
 mimetype=
 is_doc=
 show_pv_image=1
+show_fallback=1
 
 handlers=
 gen_deps=
@@ -78,7 +81,7 @@ real_main() {
     fi
 
     file_path="$1"
-    file_path=$(realpath "$file_path")
+    file_path=$(realpath -s "$file_path")
 
     [ -f "$file_path" ] || {
         echo "ERROR: file '$file_path' not found"
@@ -105,6 +108,9 @@ real_main() {
         usage
     fi
 
+    # for stpvimg
+    export PV_IMAGE_ENABLED PV_TYPE
+
     [ $# -ge 6 ] && stpv_id="$6"
     [ "$id" ]    && stpv_id="$id"
     [ ! "$stpv_id" ]  && stpv_id=-1
@@ -127,11 +133,14 @@ real_main() {
 
     if exists mimetype; then
         mimetype=$(mimetype --dereference --brief --mimetype -- "$file_path")
-        handle_now || {
+        show_fallback=
+        handle_now
+        if [ $? = $RET_FALLBACK ]; then
             # if nothing is found using mimetype, try file
             mimetype=$(file --dereference --brief --mime-type -- "$file_path")
+            show_fallback=1
             handle_now
-        }
+        fi
     else
         mimetype=$(file --dereference --brief --mime-type -- "$file_path")
         handle_now
@@ -183,22 +192,29 @@ load_config() {
 }
 
 handle_now() {
-    case "$mimetype" in # if text is preferred for documents
+    case "$mimetype" in
         application/pdf          | \
             application/*office* | \
             application/ms*      | \
             application/vnd.ms-* | \
             application/vnd.oasis.opendocument.*)
-            [ "$PREFER_TEXT" ] && show_pv_image=
-            is_doc=1;;
+            is_doc=1 ;;
     esac
-    
+    case "$file_extension_lower" in
+        pdf|stl) is_doc=1 ;;
+    esac
+
+    # if text is preferred for documents
+    [ -n "$is_doc" ] && [ -n "$PREFER_TEXT" ] &&
+        show_pv_image=
+
     echo "$handlers" | while read -r handler; do
         if [ -n "$handler" ]; then
             eval "$handler"
-            case $? in
-                "$RET_NO_MATCH")     ;;
-                *)             break ;;
+            ret=$?
+            case $ret in
+                "$RET_NO_MATCH") ;;
+                *) return $ret ;;
             esac
         fi
     done
@@ -209,14 +225,14 @@ exists() {
 }
 
 newer_than() {
-    [ -e "$1" ] && [ -e "$2" ] && {
-        res=$(find -L "$1" -prune -newer "$2" -exec echo . \;)
+    [ -s "$1" ] && [ -s "$2" ] && {
+        res=$(find "$1" -prune -newer "$2")
         [ -n "$res" ]
     }
 }
 
 image_cached() {
-    if newer_than "${image_cache_path}" "$file_path"; then
+    if newer_than "$image_cache_path" "$file_path"; then
         return 0
     else
         mkdir -p "$IMAGE_CACHE_DIR"
@@ -226,15 +242,15 @@ image_cached() {
 }
 
 image_needed() {
-    [ -n "$show_pv_image" ] #&& image_cached
+    [ -n "$show_pv_image" ]
 }
 
-image_post_handle() {
+image_prepare() {
     conv_file="$image_cache_path"
     [ ! -f "$conv_file" ] && conv_file="$file_path"
     dims=$(exiftool -S -ImageSize "$conv_file" | cut -d ' ' -f 2)
-    width=$(echo "$dims"| cut -dx -f1)
-    height=$(echo "$dims"| cut -dx -f2)
+    width=$(echo "$dims" | cut -dx -f1)
+    height=$(echo "$dims" | cut -dx -f2)
 
     if [ "$height" -gt "$MAX_IMG_CACHE_H" ]; then
         width=$((width * MAX_IMG_CACHE_H / height))
@@ -254,9 +270,12 @@ image_post_handle() {
     cmd="$cmd -define jpeg:extent=$MAX_IMG_CACHE_SIZE"
     cmd="$cmd '$image_cache_path'"
 
-    eval "$cmd" &&
-        stpvimg --add "$stpv_id" "$image_cache_path" \
-                "$x" "$y" "$w" "$h" 2>/dev/null &&
+    eval "$cmd"
+}
+
+image_show_pv() {
+    stpvimg --add "$stpv_id" "$image_cache_path" \
+            "$x" "$y" "$w" "$h" 2>/dev/null &&
         return 5
 }
 
@@ -328,6 +347,20 @@ add() {
     fi
 }
 
+add_top() {
+    handlers="$1
+${handlers}"
+    if [ -n "$gen_deps" ]; then
+        func="$1"
+        kind="$2"
+        deps="$3"
+        deps_img="$4"
+        [ -n "$kind" ] &&
+            deps_tbl="$deps_tbl
+| $func | $kind | $deps | $deps_img |"
+    fi
+}
+
 # ==== handlers ====
 
 add handle_link
@@ -352,7 +385,7 @@ handle_directory() {
 add handle_archive archive xzcat,zcat,atool,bsdtar -
 handle_archive() {
     case "$file_extension_lower" in
-        a|ace|alz|arc|arj|bz|bz2|cab|cpio|deb|gz|jar|lha|lz|lzh|lzma|lzo|\
+        a|ace|alz|arc|arj|bz|bz2|cab|cpio|deb|gz|jar|lha|lz|lzh|lzma|lzo| \
             rpm|rz|t7z|tar|tbz|tbz2|tgz|tlz|txz|tZ|tzo|war|xpi|xz|Z|zip) ;;
         *) return "$RET_NO_MATCH" ;;
     esac
@@ -388,22 +421,6 @@ handle_7z() {
     7z l -p -- "$file_path"
 }
 
-add handle_text text-source mdcat,bat,highlight,cat -
-handle_text() {
-    case "$mimetype" in
-        text/* | */xml                | \
-            application/javascript    | \
-            application/x-elc         | \
-            application/x-shellscript | \
-            application/x-desktop     | \
-            application/x-php) ;;
-        *) return "$RET_NO_MATCH" ;;
-    esac
-
-    colorize_src "$file_path" ||
-        cat "$file_path"
-}
-
 add handle_html html w3m,lynx,elinks,pandoc -
 handle_html() {
     case "$file_extension_lower" in
@@ -412,7 +429,7 @@ handle_html() {
     esac
 
     w3m -dump "$file_path"         ||
-        lynx -dump -- "$file_path" || 
+        lynx -dump -- "$file_path" ||
         elinks -dump "$file_path"  ||
         view_pandoc "$file_path"
 }
@@ -449,9 +466,9 @@ handle_csv() {
     [ "$(du "$file_path" | cut -f 1)" -le 1000 ] && {
         tmp_file_path="${file_path##*/}"
         tmp_file_path="/tmp/${tmp_file_path%.*}.txt"
-        pandoc "$file_path" -o "$tmp_file_path" 2>/dev/null \
-            && cat "$tmp_file_path" \
-            && rm -f "$tmp_file_path"
+        pandoc "$file_path" -o "$tmp_file_path" &&
+            cat "$tmp_file_path" &&
+            rm -f "$tmp_file_path"
     }
 }
 
@@ -479,13 +496,16 @@ handle_pdf() {
         return "$RET_NO_MATCH"
 
     if image_needed; then
-        pdftoppm -f 1 -l 1                   \
-                 -scale-to-x 1920            \
-                 -scale-to-y -1              \
-                 -singlefile                 \
-                 -jpeg -tiffcompression jpeg \
-                 -- "$file_path" "${image_cache_path%.*}" &&
-            image_post_handle
+        if ! image_cached; then
+            pdftoppm -f 1 -l 1                   \
+                     -scale-to-x 1920            \
+                     -scale-to-y -1              \
+                     -singlefile                 \
+                     -jpeg -tiffcompression jpeg \
+                     -- "$file_path" "${image_cache_path%.*}" &&
+                image_prepare
+        fi
+        image_show_pv
     else
         pdftotext -layout -l 10 -nopgbrk -q -- "$file_path" - &&
             return 0
@@ -502,6 +522,22 @@ handle_epub() {
     epub2txt "$file_path"
 }
 
+add handle_text text-source mdcat,bat,highlight,cat -
+handle_text() {
+    case "$mimetype" in
+        text/* | */xml                | \
+            application/javascript    | \
+            application/x-elc         | \
+            application/x-shellscript | \
+            application/x-desktop     | \
+            application/x-php) ;;
+        *) return "$RET_NO_MATCH" ;;
+    esac
+
+    colorize_src "$file_path" ||
+        cat "$file_path"
+}
+
 add handle_image image exiftool convert
 handle_image() {
     case "$mimetype" in
@@ -510,7 +546,10 @@ handle_image() {
     esac
 
     if image_needed; then
-        image_post_handle
+        if ! image_cached; then
+            image_prepare
+        fi
+        image_show_pv
     else
         exiftool "$file_path"
     fi
@@ -522,10 +561,13 @@ handle_video() {
         video/*) ;;
         *) return "$RET_NO_MATCH" ;;
     esac
-    
+
     if image_needed; then
-        ffmpegthumbnailer -i "$file_path" -o "${image_cache_path}" -s 0 &&
-            image_post_handle
+        if ! image_cached; then
+            ffmpegthumbnailer -i "$file_path" -o "${image_cache_path}" -s 0 &&
+                image_prepare
+        fi
+        image_show_pv
     else
         exiftool "$file_path"
     fi
@@ -544,21 +586,25 @@ handle_audio() {
 add handle_office office pandoc,libreoffice libreoffice
 handle_office() {
     case "$mimetype" in
-        application/*office*|application/ms*|application/vnd.ms-*) ;;
+        application/*office*|application/ms*|application/vnd.ms-*| \
+            application/vnd.*.opendocument.*) ;;
         *) return "$RET_NO_MATCH" ;;
     esac
 
     if image_needed; then
-        cache_dir="${image_cache_path%/*}"
-        tmp_file_path="${file_path##*/}"
-        tmp_file_path="${cache_dir}/${tmp_file_path%.*}.jpg"
-        rm -f "$tmp_file_path"
-        libreoffice                       \
-            --headless                    \
-            --convert-to jpg "$file_path" \
-            --outdir "$cache_dir"                   &&
-            mv "$tmp_file_path" "$image_cache_path" &&
-            image_post_handle
+        if ! image_cached; then
+            cache_dir="${image_cache_path%/*}"
+            tmp_file_path="${file_path##*/}"
+            tmp_file_path="${cache_dir}/${tmp_file_path%.*}.jpg"
+            rm -f "$tmp_file_path"
+            libreoffice                       \
+                --headless                    \
+                --convert-to jpg "$file_path" \
+                --outdir "$cache_dir" >/dev/null        &&
+                mv "$tmp_file_path" "$image_cache_path" &&
+                image_prepare
+        fi
+        image_show_pv
     else
         tmp_file_path="${file_path##*/}"
         tmp_file_path="/tmp/${tmp_file_path%.*}.txt"
@@ -581,18 +627,21 @@ handle_xounralpp() {
         ! image_needed                    &&
         return "$RET_NO_MATCH"
 
-    cache_dir="${image_cache_path%/*}"
-    tmp_file_path="${file_path##*/}"
-    tmp_file_pathbase="${cache_dir}/${tmp_file_path%.*}"
-    rm -f "${tmp_file_pathbase}.jpg"
-    rm -f "${tmp_file_pathbase}-"*".jpg"
-    xournalpp \
-        --create-img "${tmp_file_pathbase}.jpg" \
-        "$file_path" &&
-		mv "${tmp_file_pathbase}.jpg" "$image_cache_path" ||
-		    mv "${tmp_file_pathbase}-1.jpg" "$image_cache_path"
-    rm -f "${tmp_file_pathbase}-"*".jpg"
-    image_post_handle
+    if ! image_cached; then
+        cache_dir="${image_cache_path%/*}"
+        tmp_file_path="${file_path##*/}"
+        tmp_file_pathbase="${cache_dir}/${tmp_file_path%.*}"
+        rm -f "${tmp_file_pathbase}.jpg"
+        rm -f "${tmp_file_pathbase}-"*".jpg"
+        xournalpp \
+            --create-img "${tmp_file_pathbase}.jpg" \
+            "$file_path" &&
+		    mv "${tmp_file_pathbase}.jpg" "$image_cache_path" ||
+		        mv "${tmp_file_pathbase}-1.jpg" "$image_cache_path"
+        rm -f "${tmp_file_pathbase}-"*".jpg"
+        image_prepare
+    fi
+    image_show_pv
 }
 
 add handle_torrent torrent transmission-show -
@@ -609,22 +658,25 @@ handle_stl() {
         ! image_needed                 &&
         return "$RET_NO_MATCH"
 
-    size=512
-    tmpf="/tmp/__stpv_$$_stl"
-    {
-        printf 'import("'
-        printf '%s' "$file_path"
-        printf '");'
-    } > "$tmpf"
-    openscad                  \
-        -o "$tmpf.png"        \
-        --imgsize=$size,$size \
-        "$tmpf"               \
-        2>/dev/null                        &&
-        convert "$tmpf.png" "$tmpf.jpg"    &&
-        mv "$tmpf.jpg" "$image_cache_path" &&
-        rm "$tmpf"                         &&
-        image_post_handle
+    if ! image_cached; then
+        size=512
+        tmpf="/tmp/__stpv_$$_stl"
+        {
+            printf 'import("'
+            printf '%s' "$file_path"
+            printf '");'
+        } > "$tmpf"
+        openscad                  \
+            -o "$tmpf.png"        \
+            --imgsize=$size,$size \
+            "$tmpf"               \
+            2>/dev/null                        &&
+            convert "$tmpf.png" "$tmpf.jpg"    &&
+            mv "$tmpf.jpg" "$image_cache_path" &&
+            rm "$tmpf"                         &&
+            image_prepare
+    fi
+    image_show_pv
 }
 
 add handle_proc
@@ -637,8 +689,11 @@ handle_proc() {
 
 add handle_fallback
 handle_fallback() {
-    echo '----- File Type Classification -----' &&
-        file --dereference --brief -- "$file_path"
+    if [ -n "$show_fallback" ]; then
+        echo '----- File Type Classification -----' &&
+            file --dereference --brief -- "$file_path"
+    fi
+    return "$RET_FALLBACK"
 }
 
 main "$@"
