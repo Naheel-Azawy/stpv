@@ -252,6 +252,9 @@ image_prepare() {
     width=$(echo "$dims" | cut -dx -f1)
     height=$(echo "$dims" | cut -dx -f2)
 
+    [ -n "$width" ] || [ -n "$height" ] ||
+        return "$RET_NO_MATCH"
+
     if [ "$height" -gt "$MAX_IMG_CACHE_H" ]; then
         width=$((width * MAX_IMG_CACHE_H / height))
         height="$MAX_IMG_CACHE_H"
@@ -503,7 +506,7 @@ handle_pdf() {
                      -singlefile                 \
                      -jpeg -tiffcompression jpeg \
                      -- "$file_path" "${image_cache_path%.*}" &&
-                image_prepare
+                image_prepare || return
         fi
         image_show_pv
     else
@@ -547,7 +550,7 @@ handle_image() {
 
     if image_needed; then
         if ! image_cached; then
-            image_prepare
+            image_prepare || return
         fi
         image_show_pv
     else
@@ -565,7 +568,7 @@ handle_video() {
     if image_needed; then
         if ! image_cached; then
             ffmpegthumbnailer -i "$file_path" -o "${image_cache_path}" -s 0 &&
-                image_prepare
+                image_prepare || return
         fi
         image_show_pv
     else
@@ -602,7 +605,7 @@ handle_office() {
                 --convert-to jpg "$file_path" \
                 --outdir "$cache_dir" >/dev/null        &&
                 mv "$tmp_file_path" "$image_cache_path" &&
-                image_prepare
+                image_prepare || return
         fi
         image_show_pv
     else
@@ -639,7 +642,7 @@ handle_xounralpp() {
 		    mv "${tmp_file_pathbase}.jpg" "$image_cache_path" ||
 		        mv "${tmp_file_pathbase}-1.jpg" "$image_cache_path"
         rm -f "${tmp_file_pathbase}-"*".jpg"
-        image_prepare
+        image_prepare || return
     fi
     image_show_pv
 }
@@ -674,7 +677,7 @@ handle_stl() {
             convert "$tmpf.png" "$tmpf.jpg"    &&
             mv "$tmpf.jpg" "$image_cache_path" &&
             rm "$tmpf"                         &&
-            image_prepare
+            image_prepare || return
     fi
     image_show_pv
 }
