@@ -29,7 +29,7 @@
    | torrent     | transmission-show                | -                 |
    | stl         | -                                | openscad+convert  |
 
-   Overall, it should fine without most dependencies, it will fallback to simpler previews.
+   Overall, it should work fine without most dependencies, it will fallback to simpler previews.
 
 ** Usage
 *** stpv
@@ -82,7 +82,7 @@
    P.S. use any string for true, leave empty for false.
 
    Custom previews can be added as well.
-   However, if you think you wrote a nice previewer, pull requests are more than welcomes.
+   However, if you think you wrote a nice previewer, pull requests are more than welcomed.
    Check the main stpv file for more examples.
 
    #+begin_src shell
