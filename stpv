@@ -265,15 +265,18 @@ image_prepare() {
         width="$MAX_IMG_CACHE_W"
     fi
 
-    cmd="convert '$conv_file'"
-    cmd="$cmd -auto-orient"
-    cmd="$cmd -resize ${width}x${height}"
-    [ -n "$is_doc" ] && [ -n "$DARK_DOCS" ] &&
-        cmd="$cmd -channel RGB -negate"
-    cmd="$cmd -define jpeg:extent=$MAX_IMG_CACHE_SIZE"
-    cmd="$cmd '$image_cache_path'"
-
-    eval "$cmd"
+    if [ -n "$is_doc" ] && [ -n "$DARK_DOCS" ]; then
+        dark_opts='-channel RGB -negate'
+    else
+        dark_opts=
+    fi
+    # shellcheck disable=SC2086
+    convert "$conv_file"                            \
+            -auto-orient                            \
+            -resize ${width}x${height}              \
+            $dark_opts                              \
+            -define jpeg:extent=$MAX_IMG_CACHE_SIZE \
+            "$image_cache_path"
 }
 
 image_show_pv() {
