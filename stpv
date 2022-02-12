@@ -135,11 +135,14 @@ real_main() {
         mimetype=$(mimetype --dereference --brief --mimetype -- "$file_path")
         show_fallback=
         handle_now
-        if [ $? = $RET_FALLBACK ]; then
+        handler_exit_code=$?
+        if [ $handler_exit_code = $RET_FALLBACK ]; then
             # if nothing is found using mimetype, try file
             mimetype=$(file --dereference --brief --mime-type -- "$file_path")
             show_fallback=1
             handle_now
+        else
+            return $handler_exit_code
         fi
     else
         mimetype=$(file --dereference --brief --mime-type -- "$file_path")
