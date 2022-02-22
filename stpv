@@ -330,6 +330,9 @@ colorize_src() {
         elif exists highlight; then
             highlight --replace-tabs=4 --out-format=ansi \
                       --style='pablo' --force -- "$@"
+        elif exists source-highlight; then
+            source-highlight --tab=4 --out-format=esc \
+                      --style=esc256.style --failsafe -i "$@"
         else
             cat "$1"
         fi
@@ -531,7 +534,7 @@ handle_epub() {
     epub2txt "$file_path"
 }
 
-add handle_text text-source mdcat,bat,highlight,cat -
+add handle_text text-source mdcat,bat,highlight,source-highlight,cat -
 handle_text() {
     case "$mimetype" in
         text/* | */xml                | \
