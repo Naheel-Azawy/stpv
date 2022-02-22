@@ -1,4 +1,5 @@
-PREFIX = /usr
+PREFIX = /usr/local
+
 CWD = $(CURDIR)
 
 install:
