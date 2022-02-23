@@ -1,24 +1,26 @@
-PREFIX = /usr
+PREFIX    = /usr/local
+BINPREFIX = $(DESTDIR)$(PREFIX)/bin
+
 CWD = $(CURDIR)
 
 install:
-	mkdir -p $(DESTDIR)$(PREFIX)/bin/
-	cp -f stpv $(DESTDIR)$(PREFIX)/bin/
-	cp -f stpvimg $(DESTDIR)$(PREFIX)/bin/
-	cp -f stpvimgclr $(DESTDIR)$(PREFIX)/bin/
-	cp -f fzfp $(DESTDIR)$(PREFIX)/bin/
+	mkdir -p $(BINPREFIX)
+	cp -f stpv $(BINPREFIX)/
+	cp -f stpvimg $(BINPREFIX)/
+	cp -f stpvimgclr $(BINPREFIX)/
+	cp -f fzfp $(BINPREFIX)/
 
 link:
-	mkdir -p $(DESTDIR)$(PREFIX)/bin/
-	ln -sf $(CWD)/stpv $(DESTDIR)$(PREFIX)/bin/
-	ln -sf $(CWD)/stpvimg $(DESTDIR)$(PREFIX)/bin/
-	ln -sf $(CWD)/stpvimgclr $(DESTDIR)$(PREFIX)/bin/
-	ln -sf $(CWD)/fzfp $(DESTDIR)$(PREFIX)/bin/
+	mkdir -p $(BINPREFIX)
+	ln -sf $(CWD)/stpv $(BINPREFIX)/
+	ln -sf $(CWD)/stpvimg $(BINPREFIX)/
+	ln -sf $(CWD)/stpvimgclr $(BINPREFIX)/
+	ln -sf $(CWD)/fzfp $(BINPREFIX)/
 
 uninstall:
-	rm -f $(DESTDIR)$(PREFIX)/bin/stpv
-	rm -f $(DESTDIR)$(PREFIX)/bin/stpvimg
-	rm -f $(DESTDIR)$(PREFIX)/bin/stpvimgclr
-	rm -f $(DESTDIR)$(PREFIX)/bin/fzfp
+	rm -f $(BINPREFIX)/stpv
+	rm -f $(BINPREFIX)/stpvimg
+	rm -f $(BINPREFIX)/stpvimgclr
+	rm -f $(BINPREFIX)/fzfp
 
-.PHONY: install uninstall
+.PHONY: install link uninstall
