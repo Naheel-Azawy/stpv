@@ -7,27 +7,27 @@
    - [[https://github.com/seebye/ueberzug][ueberzug]] or [[https://github.com/hpjansson/chafa/][chafa]] for image previews
    - The following programs. Note that the names are the command names and not the package names
 
-   | type        | cli program                      | image program     |
-   |-------------+----------------------------------+-------------------|
-   | directory   | ls                               | -                 |
-   | archive     | xzcat,zcat,atool,bsdtar          | -                 |
-   | rar         | unrar                            | -                 |
-   | 7z+iso      | 7z                               | -                 |
-   | html        | w3m,lynx,elinks,pandoc           | -                 |
-   | json        | jq,=text-source                  | -                 |
-   | markdown    | pandoc,=text-source              | -                 |
-   | csv         | pandoc,cat                       | -                 |
-   | diff        | delta,diff-so-fancy,=text-source | -                 |
-   | pdf         | pdftotext,mutool,exiftool        | pdftoppm          |
-   | epub        | epub2txt                         | -                 |
-   | text-source | mdcat,bat,highlight,cat          | -                 |
-   | image       | exiftool                         | convert           |
-   | video       | exiftool                         | ffmpegthumbnailer |
-   | audio       | exiftool                         | -                 |
-   | office      | pandoc,libreoffice               | libreoffice       |
-   | xounralpp   | -                                | xournalpp         |
-   | torrent     | transmission-show                | -                 |
-   | stl         | -                                | openscad+convert  |
+   | type        | cli program                              | image program     |
+   |-------------+------------------------------------------+-------------------|
+   | directory   | ls                                       | -                 |
+   | archive     | xzcat,zcat,atool,bsdtar                  | -                 |
+   | rar         | unrar                                    | -                 |
+   | 7z+iso      | 7z                                       | -                 |
+   | html        | w3m,lynx,elinks,pandoc                   | -                 |
+   | json        | jq,=text-source                          | -                 |
+   | markdown    | pandoc,=text-source                      | -                 |
+   | csv         | pandoc,cat                               | -                 |
+   | diff        | delta,diff-so-fancy,=text-source         | -                 |
+   | pdf         | pdftotext,mutool,exiftool                | pdftoppm          |
+   | epub        | epub2txt                                 | -                 |
+   | text-source | mdcat,bat,highlight,source-highlight,cat | -                 |
+   | image       | exiftool                                 | convert           |
+   | video       | exiftool                                 | ffmpegthumbnailer |
+   | audio       | exiftool                                 | -                 |
+   | office      | pandoc,libreoffice                       | libreoffice       |
+   | xounralpp   | -                                        | xournalpp         |
+   | torrent     | transmission-show                        | -                 |
+   | stl         | -                                        | openscad+convert  |
 
    Overall, it should work fine without most dependencies, it will fallback to simpler previews.
 
