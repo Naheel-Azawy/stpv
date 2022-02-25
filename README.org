@@ -21,7 +21,7 @@
    | pdf         | pdftotext,mutool,exiftool                | pdftoppm          |
    | epub        | epub2txt                                 | -                 |
    | text-source | mdcat,bat,highlight,source-highlight,cat | -                 |
-   | image       | exiftool                                 | convert           |
+   | image       | exiftool                                 | convert,identify  |
    | video       | exiftool                                 | ffmpegthumbnailer |
    | audio       | exiftool                                 | -                 |
    | office      | pandoc,libreoffice                       | libreoffice       |
@@ -76,12 +76,19 @@
 
    Options are listed below. Use any string for true, leave empty for false.
    #+BEGIN_SRC shell
-     PV_IMAGE_ENABLED=1 # show image previews when possible
-     PV_TYPE=img        # (img or text) where text shows image previews in the terminal
-     PREFER_TEXT=       # prefer text over images when displaying documents
-     DARK_DOCS=1        # invert documents preview color in image previews
-     SAFE=1             # kill itself if needed (check main for details)
+     PV_IMAGE_ENABLED=1        # show image previews when possible
+     PV_TYPE=img               # (img or text) where text shows image previews in the terminal
+     PREFER_TEXT=              # prefer text over images when displaying documents
+     DARK_DOCS=                # invert documents preview color in image previews
+     SAFE=1                    # kill itself if needed (check main for details)
+     AUTO_ORIENT=1             # auto orient images
+     MAX_IMG_CACHE_SIZE=300kb  # max image cache size
+     MAX_IMG_CACHE_W=1920      # max image cached image width
+     MAX_IMG_CACHE_H=1080      # max image cached image height
    #+END_SRC
+
+   The last 3 options control how images are cached.
+   Setting them to empty values will improve performance but at the same time might increase cache size.
 
    Custom previews can be added to your ~config.sh~ file as well.
    Below is an example that shows any file ending with a ~.moo~ in ~cowsay~.
