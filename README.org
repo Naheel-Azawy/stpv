@@ -71,7 +71,10 @@
    #+end_src
 
 ** Configuration
-   ~/.config/stpv/config.sh:
+   The configuration file is typically located in ~/.config/stpv/config.sh.
+   It is a simple shell script that gets sourced in stpv.
+
+   Options are listed below. Use any string for true, leave empty for false.
    #+BEGIN_SRC shell
      PV_IMAGE_ENABLED=1 # show image previews when possible
      PV_TYPE=img        # (img or text) where text shows image previews in the terminal
@@ -79,11 +82,9 @@
      DARK_DOCS=1        # invert documents preview color in image previews
      SAFE=1             # kill itself if needed (check main for details)
    #+END_SRC
-   P.S. use any string for true, leave empty for false.
 
-   Custom previews can be added as well.
-   However, if you think you wrote a nice previewer, pull requests are more than welcomed.
-   Check the main stpv file for more examples.
+   Custom previews can be added to your ~config.sh~ file as well.
+   Below is an example that shows any file ending with a ~.moo~ in ~cowsay~.
 
    #+begin_src shell
      #       function    type dep    dep-image
@@ -95,6 +96,9 @@
          cowsay < "$file_path"
      }
    #+end_src
+
+   However, if you think you wrote a nice previewer, pull requests are more than welcomed.
+   Check the main stpv file for more examples.
 
 ** Video
    [[https://youtu.be/MXkjcgzILIc][https://youtu.be/MXkjcgzILIc]]
