@@ -274,7 +274,7 @@ image_prepare() {
         dark_opts=
     fi
     # shellcheck disable=SC2086
-    convert "$conv_file"                            \
+    convert "$conv_file[0]"                         \
             -auto-orient                            \
             -resize ${width}x${height}              \
             $dark_opts                              \
