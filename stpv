@@ -484,18 +484,20 @@ handle_csv() {
 
 add handle_diff diff delta,diff-so-fancy,=text-source -
 handle_diff() {
-    [ "$mimetype" = text/x-diff ] ||
-        return "$RET_NO_MATCH"
+    case "$mimetype" in
+        text/x-diff | text/x-patch) ;;
+        *) return "$RET_NO_MATCH" ;;
+    esac
 
     # use the user-specified git diff pager if it is set
     if git config core.pager >/dev/null; then
         eval "$(git config core.pager)" < "$file_path" && return 0
     fi
-    # delta and diff-so-fancy are fancy diff pagers.
-    delta "$file_path" && return 0
+    # fancy diff pagers
+    delta         < "$file_path" && return 0
     diff-so-fancy < "$file_path" && return 0
-    # colorize_src uses highlight or bat, both of which support
-    # diff/patch syntax.
+    colordiff     < "$file_path" && return 0
+    # colorize_src uses highlight or bat, both of which support diff/patch syntax.
     colorize_src "$file_path" && return 0
 }
 
