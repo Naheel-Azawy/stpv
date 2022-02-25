@@ -24,11 +24,9 @@
 
 # ==== constants ====
 
-[ "$XDG_CONFIG_HOME" ] ||
-    XDG_CONFIG_HOME="$HOME/.config"
-CFG_DIR="$XDG_CONFIG_HOME/stpv"
+CFG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/stpv"
 CFG_FILE="$CFG_DIR/config.sh"
-IMAGE_CACHE_DIR="$HOME/.cache/stpv"
+IMAGE_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/stpv"
 
 RET_NO_MATCH=10
 RET_FALLBACK=11
