@@ -495,7 +495,7 @@ handle_diff() {
     fi
     # delta and diff-so-fancy are fancy diff pagers.
     delta "$file_path" && return 0
-    diff-so-fancy "$file_path" && return 0
+    diff-so-fancy < "$file_path" && return 0
     # colorize_src uses highlight or bat, both of which support
     # diff/patch syntax.
     colorize_src "$file_path" && return 0
