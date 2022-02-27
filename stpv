@@ -251,7 +251,7 @@ image_prepare() {
     conv_file="$image_cache_path"
     [ ! -f "$conv_file" ] && conv_file="$file_path"
 
-    dims="$(identify -format '%w\n%h\n' "$conv_file[0]")"
+    dims="$(identify -ping -format '%w\n%h\n' "$conv_file[0]")"
     width="$(echo "$dims" | head -1)"
     height="$(echo "$dims" | tail -1)"
 
