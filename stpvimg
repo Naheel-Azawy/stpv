@@ -56,7 +56,7 @@ listen() {
     iskitty && return 0
 
     # cleanup any dead listeners if any
-    for f in $(find /tmp/ -maxdepth 1 -name 'stpvimgfifo*-pid'); do
+    find /tmp/ -maxdepth 1 -name 'stpvimgfifo*-pid' | while read -r f; do
         pid=$(cat "$f")
         ppid=$(ps -h -p "$pid" -o ppid | xargs)
         if [ "$ppid" = 1 ]; then

@@ -190,6 +190,7 @@ usage() {
 
 load_config() {
     mkdir -p "$CFG_DIR"
+    # shellcheck disable=SC1090
     [ -f "$CFG_FILE" ] && . "$CFG_FILE"
 }
 
@@ -251,7 +252,7 @@ image_prepare() {
     conv_file="$image_cache_path"
     [ ! -f "$conv_file" ] && conv_file="$file_path"
 
-    dims="$(identify -ping -format '%w\n%h\n' "$conv_file[0]")"
+    dims="$(identify -ping -format '%w\n%h\n' "${conv_file}[0]")"
     width="$(echo "$dims" | head -1)"
     height="$(echo "$dims" | tail -1)"
 
@@ -287,7 +288,7 @@ image_prepare() {
     fi
 
     # shellcheck disable=SC2086
-    convert "$conv_file[0]"            \
+    convert "${conv_file}[0]"          \
             $dark_opts                 \
             $auto_orient_opts          \
             $max_img_size_opts         \
@@ -660,6 +661,7 @@ handle_xounralpp() {
         tmp_file_pathbase="${cache_dir}/${tmp_file_path%.*}"
         rm -f "${tmp_file_pathbase}.jpg"
         rm -f "${tmp_file_pathbase}-"*".jpg"
+        # shellcheck disable=SC2015
         xournalpp \
             --create-img "${tmp_file_pathbase}.jpg" \
             "$file_path" &&
