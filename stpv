@@ -30,17 +30,18 @@ IMAGE_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/stpv"
 
 RET_NO_MATCH=10
 RET_FALLBACK=11
-MAX_IMG_CACHE_SIZE=300kb
-MAX_IMG_CACHE_W=1920
-MAX_IMG_CACHE_H=1080
 
 # ==== config ====
 
-PV_IMAGE_ENABLED=1 # show image previews when possible
-PV_TYPE=img        # (img or text) where text shows image previews in the terminal
-PREFER_TEXT=       # prefer text over images when displaying documents
-DARK_DOCS=         # invert documents preview color in image previews
-SAFE=1             # kill itself if needed (check main for details)
+PV_IMAGE_ENABLED=1        # show image previews when possible
+PV_TYPE=img               # (img or text) where text shows image previews in the terminal
+PREFER_TEXT=              # prefer text over images when displaying documents
+DARK_DOCS=                # invert documents preview color in image previews
+SAFE=1                    # kill itself if needed (check main for details)
+AUTO_ORIENT=1             # auto orient images
+MAX_IMG_CACHE_SIZE=300kb  # max image cache size
+MAX_IMG_CACHE_W=1920      # max image cached image width
+MAX_IMG_CACHE_H=1080      # max image cached image height
 
 # ==== global parameters ====
 
@@ -249,19 +250,20 @@ image_needed() {
 image_prepare() {
     conv_file="$image_cache_path"
     [ ! -f "$conv_file" ] && conv_file="$file_path"
-    dims=$(exiftool -S -ImageSize "$conv_file" | cut -d ' ' -f 2)
-    width=$(echo "$dims" | cut -dx -f1)
-    height=$(echo "$dims" | cut -dx -f2)
+
+    dims="$(identify -ping -format '%w\n%h\n' "$conv_file[0]")"
+    width="$(echo "$dims" | head -1)"
+    height="$(echo "$dims" | tail -1)"
 
     [ -n "$width" ] || [ -n "$height" ] ||
         return "$RET_NO_MATCH"
 
-    if [ "$height" -gt "$MAX_IMG_CACHE_H" ]; then
+    if [ -n "$MAX_IMG_CACHE_H" ] && [ "$height" -gt "$MAX_IMG_CACHE_H" ]; then
         width=$((width * MAX_IMG_CACHE_H / height))
         height="$MAX_IMG_CACHE_H"
     fi
 
-    if [ "$width" -gt "$MAX_IMG_CACHE_W" ]; then
+    if [ -n "$MAX_IMG_CACHE_W" ] && [ "$width" -gt "$MAX_IMG_CACHE_W" ]; then
         height=$((height * MAX_IMG_CACHE_W / width))
         width="$MAX_IMG_CACHE_W"
     fi
@@ -271,12 +273,25 @@ image_prepare() {
     else
         dark_opts=
     fi
+
+    if [ -n "$AUTO_ORIENT" ]; then
+        auto_orient_opts='-auto-orient'
+    else
+        auto_orient_opts=
+    fi
+
+    if [ -n "$MAX_IMG_CACHE_SIZE" ]; then
+        max_img_size_opts="-define jpeg:extent=$MAX_IMG_CACHE_SIZE"
+    else
+        max_img_size_opts=
+    fi
+
     # shellcheck disable=SC2086
-    convert "$conv_file[0]"                         \
-            -auto-orient                            \
-            -resize ${width}x${height}              \
-            $dark_opts                              \
-            -define jpeg:extent=$MAX_IMG_CACHE_SIZE \
+    convert "$conv_file[0]"            \
+            $dark_opts                 \
+            $auto_orient_opts          \
+            $max_img_size_opts         \
+            -resize ${width}x${height} \
             "$image_cache_path"
 }
 
@@ -550,7 +565,7 @@ handle_text() {
         cat "$file_path"
 }
 
-add handle_image image exiftool convert
+add handle_image image exiftool convert,identify
 handle_image() {
     case "$mimetype" in
         image/*) ;;
