@@ -423,8 +423,8 @@ handle_archive() {
             colorize_src "/tmp/$$.el" &&
             rm -f "/tmp/$$.el"
     else # Others
-        atool --list -- "$file_path"
-        bsdtar --list --file "$file_path"
+        atool --list -- "$file_path" ||
+            bsdtar --list --file "$file_path"
     fi
 }
 
