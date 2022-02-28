@@ -213,7 +213,7 @@ handle_now() {
 
     echo "$handlers" | while read -r handler; do
         if [ -n "$handler" ]; then
-            eval "$handler"
+            eval "$handler" </dev/null
             ret=$?
             case $ret in
                 "$RET_NO_MATCH") ;;
@@ -298,7 +298,7 @@ image_prepare() {
 
 image_show_pv() {
     stpvimg --add "$stpv_id" "$image_cache_path" \
-            "$x" "$y" "$w" "$h" 2>/dev/null &&
+            "$x" "$y" "$w" "$h" &&
         return 5
 }
 

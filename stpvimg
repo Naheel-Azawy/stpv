@@ -28,9 +28,7 @@ iswayland() {
 }
 
 iskitty() {
-    # TODO: uncomment after fixing
-    # [ -n "$KITTY_PID" ]
-    false
+    [ -n "$KITTY_PID" ]
 }
 
 toggle() {
@@ -103,8 +101,7 @@ add() {
             "$F" 2>/dev/null
 
     elif iskitty; then
-        kitty +kitten icat \
-              --align left \
+        kitty +kitten icat --transfer-mode file --align left \
               --place "${W}x${H}@${X}x${Y}" "$F" >/dev/tty
 
     else
@@ -119,8 +116,10 @@ add() {
 clear() {
     [ "$PV_TYPE" = text ] && return 0
 
-    iskitty &&
-        kitty +kitten icat --clear >/dev/tty
+    iskitty && {
+        kitty +kitten icat --clear --transfer-mode file
+        return
+    }
 
     [ ! -e "$FIFO" ] && return 1
     fifo_open "$FIFO" &&
