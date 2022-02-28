@@ -55,9 +55,10 @@
 *** Integration with [[https://github.com/gokcehan/lf][lf]]
     lf now support image previews. All what is needed is to add the following to lfrc:
     #+begin_src shell
-     set previewer stpv
-     set cleaner stpvimgclr
-     &stpvimg --listen $id
+      set previewer stpv
+      set cleaner stpvimgclr
+      &stpvimg --listen $id
+      cmd on-quit $stpvimg --end $id
     #+end_src
 
 *** Integration with [[https://github.com/junegunn/fzf][fzf]]
