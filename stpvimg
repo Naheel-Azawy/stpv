@@ -157,7 +157,7 @@ main() {
     # if no display server
     [ -n "$DISPLAY" ] || PV_TYPE=text
 
-    if (iswayland || ! exists ueberzug) && iskitty; then
+    if (iswayland || ! exists ueberzug) && ! iskitty; then
         PV_TYPE=text
     fi
 
