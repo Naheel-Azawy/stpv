@@ -82,7 +82,7 @@ real_main() {
     file_path="$1"
     file_path=$(realpath -s "$file_path")
 
-    [ -f "$file_path" ] || {
+    [ -e "$file_path" ] || {
         echo "ERROR: file '$file_path' not found"
         return 1
     }
