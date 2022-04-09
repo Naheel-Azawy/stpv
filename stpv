@@ -173,7 +173,7 @@ main() {
             count=$((count + 1))
             sleep .01
         done
-        ps -o pid= --ppid $real_pid | xargs kill >/dev/null 2>/dev/null
+        list_descendants $real_pid | xargs kill >/dev/null 2>/dev/null
         wait $real_pid
     else
         real_main "$@"
@@ -181,6 +181,15 @@ main() {
 }
 
 # ==== helpers ====
+
+list_descendants() {
+    # https://unix.stackexchange.com/a/124148/183147
+    children=$(ps -o pid= --ppid "$1")
+    echo "$children"
+    for pid in $children; do
+        list_descendants "$pid"
+    done
+}
 
 usage() {
     BIN=$(basename "$0")
