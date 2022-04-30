@@ -42,6 +42,7 @@ AUTO_ORIENT=1             # auto orient images
 MAX_IMG_CACHE_SIZE=300kb  # max image cache size
 MAX_IMG_CACHE_W=1920      # max image cached image width
 MAX_IMG_CACHE_H=1080      # max image cached image height
+TIMEOUT=5                 # maximum time in seconds stpv should take, approximately
 
 # ==== global parameters ====
 
@@ -169,7 +170,8 @@ main() {
         real_main "$@" &
         real_pid=$!
         count=0
-        while [ $count -lt 500 ] && kill -0 $real_pid 2>/dev/null; do
+        max_count=$(echo "scale=0; $TIMEOUT * 100 / 1" | bc)
+        while [ "$count" -lt "$max_count" ] && [ -e "/proc/$real_pid" ]; do
             count=$((count + 1))
             sleep .01
         done

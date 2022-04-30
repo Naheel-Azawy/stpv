@@ -90,6 +90,7 @@
      MAX_IMG_CACHE_SIZE=300kb  # max image cache size
      MAX_IMG_CACHE_W=1920      # max image cached image width
      MAX_IMG_CACHE_H=1080      # max image cached image height
+     TIMEOUT=5                 # maximum time in seconds stpv should take, approximately
    #+END_SRC
 
    The last 3 options control how images are cached.

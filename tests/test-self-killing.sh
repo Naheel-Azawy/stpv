@@ -32,11 +32,13 @@ main() {
     mkjson
     ls -lh $j
 
-    echo ">>> running jq alone"
-    time jq '.' $j | tail
+    [ "$1" = --stpv-only ] || {
+        echo ">>> running jq alone"
+        time jq '.' $j | tail
+    }
 
     echo ">>> running stpv"
-    time stpv $j
+    time ./stpv $j
 
     rm -rf $TESTDIR
 }
