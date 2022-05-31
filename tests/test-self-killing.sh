@@ -34,11 +34,11 @@ main() {
 
     [ "$1" = --stpv-only ] || {
         echo ">>> running jq alone"
-        time jq '.' $j | tail
+        time -p sh -c "jq '.' $j | tail"
     }
 
     echo ">>> running stpv"
-    time ./stpv $j
+    time -p ./stpv $j
 
     rm -rf $TESTDIR
 }
