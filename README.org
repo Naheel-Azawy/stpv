@@ -113,6 +113,9 @@
    However, if you think you wrote a nice previewer, pull requests are more than welcomed.
    Check the main stpv file for more examples.
 
+** Related work
+   [[https://github.com/NikitaIvanovV/ctpv][ctpv]] is a remake of stpv in C. It's faster compared to stpv and has some great potential.
+
 ** Video
    [[https://youtu.be/MXkjcgzILIc][https://youtu.be/MXkjcgzILIc]]
 
