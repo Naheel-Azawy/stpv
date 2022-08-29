@@ -619,7 +619,15 @@ handle_audio() {
         *) return "$RET_NO_MATCH" ;;
     esac
 
-    exiftool "$file_path"
+    if image_needed; then
+        if ! image_cached; then
+            exiftool -b -Picture "$file_path" > "${image_cache_path}" &&
+                image_prepare || return
+        fi
+        image_show_pv
+    else
+        exiftool "$file_path"
+    fi
 }
 
 add handle_office office pandoc,libreoffice libreoffice
