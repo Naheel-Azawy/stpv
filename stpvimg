@@ -46,6 +46,7 @@ isenabled() {
 }
 
 isalive() {
+    [ "$PV_TYPE" = text ] && return 0
     iskitty || [ -e "$FIFO" ]
 }
 
