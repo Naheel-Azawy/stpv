@@ -15,6 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+CFG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/stpv"
+CFG_FILE="$CFG_DIR/config.sh"
+
 TOGGLE="$HOME/.config/stpv/noimgpv"
 CMD=; ID=; FIFO=; FPID=
 
@@ -46,12 +49,12 @@ isenabled() {
 }
 
 isalive() {
-    [ "$PV_TYPE" = text ] && return 0
+    [ "$PV_TYPE" != img ] && return 0
     iskitty || [ -e "$FIFO" ]
 }
 
 listen() {
-    [ "$PV_TYPE" = text ] && return 0
+    [ "$PV_TYPE" != img ] && return 0
     iskitty && return 0
 
     # cleanup any dead listeners if any
@@ -94,10 +97,13 @@ add() {
     fi
 
     if [ "$PV_TYPE" = text ]; then
-        chafa \
-            --fill=block \
-            --symbols=block \
-            -c 256 \
+        chafa                \
+            --size "$W"x"$H" \
+            "$F" 2>/dev/null
+
+    elif [ "$PV_TYPE" = sixel ]; then
+        chafa                \
+            -f sixel         \
             --size "$W"x"$H" \
             "$F" 2>/dev/null
 
@@ -115,7 +121,7 @@ add() {
 }
 
 clear() {
-    [ "$PV_TYPE" = text ] && return 0
+    [ "$PV_TYPE" != img ] && return 0
 
     iskitty && {
         kitty +kitten icat --clear --transfer-mode file
@@ -128,7 +134,7 @@ clear() {
 }
 
 end() {
-    [ "$PV_TYPE" = text ] && return 0
+    [ "$PV_TYPE" != img ] && return 0
     clear
     iskitty && return 0
     [ -f "$FPID" ] &&
@@ -151,18 +157,28 @@ usage() {
     return 1
 }
 
+load_config() {
+    [ -f "$CFG_FILE" ] && {
+        s=$(sed -rn 's/(PV_.+)=(.+)/\1=\2/p' "$CFG_FILE")
+        eval "$s"
+    }
+}
+
 main() {
+    load_config
+
     [ "$PV_IMAGE_ENABLED" = 0 ] || [ -f "$TOGGLE" ] &&
         return 1
 
     # if no display server
     [ -n "$DISPLAY" ] || PV_TYPE=text
 
-    if (iswayland || ! exists ueberzug) && ! iskitty; then
+    if [ "$PV_TYPE" = img ] && (iswayland || ! exists ueberzug) && ! iskitty; then
+        # if it's sixel, it will be left alone
         PV_TYPE=text
     fi
 
-    if [ "$PV_TYPE" = text ] && ! exists chafa; then
+    if [ "$PV_TYPE" != img ] && ! exists chafa; then
         return 1
     fi
 
