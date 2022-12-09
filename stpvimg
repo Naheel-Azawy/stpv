@@ -105,7 +105,7 @@ add() {
         chafa                \
             -f sixel         \
             --size "$W"x"$H" \
-            "$F" 2>/dev/null
+            "$F" 2>/dev/null | sed 's/#/\n#/g'
 
     elif iskitty; then
         kitty +kitten icat --transfer-mode file --align left \
