@@ -167,16 +167,7 @@ main() {
         # not so light... Keep in mind `convert` runs a lot in
         # here... So, this will save your life and keep your
         # machine safe!
-        real_main "$@" &
-        real_pid=$!
-        count=0
-        max_count=$(echo "scale=0; $TIMEOUT * 100 / 1" | bc)
-        while [ "$count" -lt "$max_count" ] && [ -e "/proc/$real_pid" ]; do
-            count=$((count + 1))
-            sleep .01
-        done
-        list_descendants $real_pid | xargs kill >/dev/null 2>/dev/null
-        wait $real_pid
+        exec timeout "$TIMEOUT" "$0" --real "$@"
     else
         real_main "$@"
     fi
