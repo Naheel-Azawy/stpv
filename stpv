@@ -229,6 +229,14 @@ exists() {
     command -v "$1" >/dev/null
 }
 
+run_if_exists() {
+    if exists "$1"; then
+        "$@"
+    else
+        return 1
+    fi
+}
+
 newer_than() {
     [ -s "$1" ] && [ -s "$2" ] && {
         res=$(find "$1" -prune -newer "$2")
@@ -425,8 +433,8 @@ handle_archive() {
             colorize_src "/tmp/$$.el" &&
             rm -f "/tmp/$$.el"
     else # Others
-        atool --list -- "$file_path" ||
-            bsdtar --list --file "$file_path"
+        run_if_exists atool --list -- "$file_path" ||
+            run_if_exists bsdtar --list --file "$file_path"
     fi
 }
 
@@ -436,7 +444,7 @@ handle_rar() {
         return "$RET_NO_MATCH"
 
     # Avoid password prompt by providing empty password
-    unrar lt -p- -- "$file_path"
+    run_if_exists unrar lt -p- -- "$file_path"
 }
 
 add handle_7z 7z+iso 7z -
@@ -446,7 +454,7 @@ handle_7z() {
         return "$RET_NO_MATCH"
 
     # Avoid password prompt by providing empty password
-    7z l -p -- "$file_path"
+    run_if_exists 7z l -p -- "$file_path"
 }
 
 add handle_html html w3m,lynx,elinks,pandoc -
@@ -456,10 +464,10 @@ handle_html() {
         *) return "$RET_NO_MATCH" ;;
     esac
 
-    w3m -dump "$file_path"         ||
-        lynx -dump -- "$file_path" ||
-        elinks -dump "$file_path"  ||
-        view_pandoc "$file_path"
+    run_if_exists w3m -dump "$file_path"         ||
+        run_if_exists lynx -dump -- "$file_path" ||
+        run_if_exists elinks -dump "$file_path"  ||
+        run_if_exists view_pandoc "$file_path"
 }
 
 add handle_json json jq,=text-source -
@@ -468,8 +476,8 @@ handle_json() {
         [ "$file_extension_lower" = json ] ||
         return "$RET_NO_MATCH"
 
-    jq -C . "$file_path"          ||
-        colorize_src "$file_path" ||
+    run_if_exists jq -C . "$file_path" ||
+        colorize_src "$file_path"      ||
         cat "$file_path"
 }
 
@@ -494,7 +502,7 @@ handle_csv() {
     [ "$(du "$file_path" | cut -f 1)" -le 1000 ] && {
         tmp_file_path="${file_path##*/}"
         tmp_file_path="/tmp/${tmp_file_path%.*}.txt"
-        pandoc "$file_path" -o "$tmp_file_path" &&
+        run_if_exists pandoc "$file_path" -o "$tmp_file_path" &&
             cat "$tmp_file_path" &&
             rm -f "$tmp_file_path"
     }
@@ -512,9 +520,9 @@ handle_diff() {
         eval "$(git config core.pager)" < "$file_path" && return 0
     fi
     # fancy diff pagers
-    delta         < "$file_path" && return 0
-    diff-so-fancy < "$file_path" && return 0
-    colordiff     < "$file_path" && return 0
+    run_if_exists delta         < "$file_path" && return 0
+    run_if_exists diff-so-fancy < "$file_path" && return 0
+    run_if_exists colordiff     < "$file_path" && return 0
     # colorize_src uses highlight or bat, both of which support diff/patch syntax.
     colorize_src "$file_path" && return 0
 }
@@ -527,7 +535,7 @@ handle_pdf() {
 
     if image_needed; then
         if ! image_cached; then
-            pdftoppm -f 1 -l 1                   \
+            run_if_exists pdftoppm -f 1 -l 1     \
                      -scale-to-x 1920            \
                      -scale-to-y -1              \
                      -singlefile                 \
@@ -537,10 +545,10 @@ handle_pdf() {
         fi
         image_show_pv
     else
-        pdftotext -layout -l 10 -nopgbrk -q -- "$file_path" - &&
+        run_if_exists pdftotext -layout -l 10 -nopgbrk -q -- "$file_path" - &&
             return 0
-        mutool draw -F txt -i -- "$file_path" 1-10 && return 0
-        exiftool "$file_path" && return 0
+        run_if_exists mutool draw -F txt -i -- "$file_path" 1-10 && return 0
+        run_if_exists exiftool "$file_path" && return 0
     fi
 }
 
@@ -549,7 +557,7 @@ handle_epub() {
     [ "$file_extension_lower" = epub ] ||
         return "$RET_NO_MATCH"
 
-    epub2txt "$file_path"
+    run_if_exists epub2txt "$file_path"
 }
 
 add handle_text text-source mdcat,bat,highlight,source-highlight,cat -
@@ -581,7 +589,7 @@ handle_image() {
         fi
         image_show_pv
     else
-        exiftool "$file_path"
+        run_if_exists exiftool "$file_path"
     fi
 }
 
@@ -599,7 +607,7 @@ handle_video() {
         fi
         image_show_pv
     else
-        exiftool "$file_path"
+        run_if_exists exiftool "$file_path"
     fi
 }
 
@@ -617,7 +625,7 @@ handle_audio() {
         fi
         image_show_pv
     else
-        exiftool "$file_path"
+        run_if_exists exiftool "$file_path"
     fi
 }
 
@@ -646,11 +654,11 @@ handle_office() {
     else
         tmp_file_path="${file_path##*/}"
         tmp_file_path="/tmp/${tmp_file_path%.*}.txt"
-        pandoc "$file_path" -o "$tmp_file_path" 2>/dev/null \
-            && cat "$tmp_file_path"                         \
-            && rm -f "$tmp_file_path"                       \
+        run_if_exists pandoc "$file_path" -o "$tmp_file_path" 2>/dev/null \
+            && cat "$tmp_file_path"                                       \
+            && rm -f "$tmp_file_path"                                     \
             && return 0
-        libreoffice                       \
+        run_if_exists libreoffice         \
             --headless                    \
             --convert-to txt "$file_path" \
             --outdir /tmp >/dev/null      \
@@ -672,7 +680,7 @@ handle_xounralpp() {
         rm -f "${tmp_file_pathbase}.jpg"
         rm -f "${tmp_file_pathbase}-"*".jpg"
         # shellcheck disable=SC2015
-        xournalpp \
+        run_if_exists xournalpp                     \
             --create-img "${tmp_file_pathbase}.jpg" \
             "$file_path" &&
 		    mv "${tmp_file_pathbase}.jpg" "$image_cache_path" ||
@@ -688,7 +696,7 @@ handle_torrent() {
     [ "$file_extension_lower" = torrent ] ||
         return "$RET_NO_MATCH"
 
-    transmission-show -- "$file_path"
+    run_if_exists transmission-show -- "$file_path"
 }
 
 add handle_stl stl - openscad+convert
@@ -705,7 +713,7 @@ handle_stl() {
             printf '%s' "$file_path"
             printf '");'
         } > "$tmpf"
-        openscad                  \
+        run_if_exists openscad    \
             -o "$tmpf.png"        \
             --imgsize=$size,$size \
             "$tmpf"               \
