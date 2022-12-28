@@ -726,6 +726,25 @@ handle_stl() {
     image_show_pv
 }
 
+add handle_drawio drawio - drawio
+handle_drawio() {
+    [ "$file_extension_lower" = drawio ] ||
+        return "$RET_NO_MATCH"
+
+    if image_needed; then
+        if ! image_cached; then
+            run_if_exists drawio --export --crop \
+                          "$file_path"           \
+                          -o "$image_cache_path" \
+                          >/dev/null &&
+                image_prepare || return
+        fi
+        image_show_pv
+    else
+        return "$RET_NO_MATCH"
+    fi
+}
+
 add handle_proc
 handle_proc() {
     echo "$file_path" | grep -q '^/proc/' ||
