@@ -460,7 +460,7 @@ handle_7z() {
 add handle_html html w3m,lynx,elinks,pandoc -
 handle_html() {
     case "$file_extension_lower" in
-        htm|html|xhtml) ;;
+        htm|html|xhtml|mhtml) ;;
         *) return "$RET_NO_MATCH" ;;
     esac
 
