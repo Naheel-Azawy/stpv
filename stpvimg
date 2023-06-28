@@ -19,7 +19,16 @@ CFG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/stpv"
 CFG_FILE="$CFG_DIR/config.sh"
 
 TOGGLE="$HOME/.config/stpv/noimgpv"
-CMD=; ID=; FIFO=; FPID=
+
+PV_IMAGE_ENABLED=1
+PV_TYPE=
+# img  := ueberzug|kitty|sixel
+# text := ansi|ascii
+
+ueberzug_fifo=
+fpid=
+
+# ==== utils ====
 
 exists() {
     command -v "$1" >/dev/null
@@ -48,15 +57,44 @@ isenabled() {
     [ "$PV_IMAGE_ENABLED" = 1 ] || [ ! -f "$TOGGLE" ]
 }
 
-isalive() {
-    [ "$PV_TYPE" != img ] && return 0
-    iskitty || [ -e "$FIFO" ]
+fifo_open() {
+    # https://unix.stackexchange.com/a/522940/183147
+    dd oflag=nonblock conv=notrunc,nocreat count=0 of="$1" \
+       >/dev/null 2>/dev/null
 }
 
-listen() {
-    [ "$PV_TYPE" != img ] && return 0
-    iskitty && return 0
+handle_add_args() {
+    file="$1" x="$2" y="$3" w="$4" h="$5"
+    if [ ! "$x" ] || [ ! "$y" ] || [ ! "$w" ] || [ ! "$h" ]; then
+        x=0 y=0
+        w=$(tput cols)
+        h=$(tput lines)
+    else
+        # sometimes to goes a bit beyond the line below
+        h=$((h - 1))
+    fi
+}
 
+# ==== interface base ====
+
+base_usable()  { false; }
+base_isalive() { true;  }
+base_listen()  { true;  }
+base_add()     { true;  }
+base_clear()   { true;  }
+base_end()     { true;  }
+
+# ==== interface ueberzug ====
+
+ueberzug_usable() {
+    exists ueberzug && ! iswayland && [ -n "$DISPLAY" ]
+}
+
+ueberzug_isalive() {
+    [ -e "$ueberzug_fifo" ]
+}
+
+ueberzug_listen() {
     # cleanup any dead listeners if any
     find /tmp/ -maxdepth 1 -name 'stpvimgfifo*-pid' | while read -r f; do
         pid=$(cat "$f")
@@ -67,81 +105,150 @@ listen() {
     done
 
     # if already listening, ignore
-    [ -e "$FIFO" ] && return 0
+    [ -e "$ueberzug_fifo" ] && return 0
 
-    mkfifo "$FIFO"
-    echo $$ > "$FPID"
-
-    # echo "FIFO='$FIFO'"
-    # echo "PID=$$"
+    mkfifo "$ueberzug_fifo"
+    echo $$ > "$fpid"
 
     trap end EXIT
-    tail -f "$FIFO" | ueberzug layer
+    tail -f "$ueberzug_fifo" | ueberzug layer
 }
 
-fifo_open() {
-    # https://unix.stackexchange.com/a/522940/183147
-    dd oflag=nonblock conv=notrunc,nocreat count=0 of="$1" \
-       >/dev/null 2>/dev/null
-}
-
-add() {
-    F="$1"; X="$2"; Y="$3"; W="$4"; H="$5"
-    if [ ! "$X" ] || [ ! "$Y" ] || [ ! "$W" ] || [ ! "$H" ]; then
-        X=0; Y=0
-        W=$(tput cols)
-        H=$(tput lines)
-    else
-        # sometimes to goes a bit beyond the line below
-        H=$((H - 1))
-    fi
-
-    if [ "$PV_TYPE" = text ]; then
-        chafa                \
-            --size "$W"x"$H" \
-            "$F" 2>/dev/null
-
-    elif [ "$PV_TYPE" = sixel ]; then
-        chafa                \
-            -f sixel         \
-            --size "$W"x"$H" \
-            "$F" 2>/dev/null | sed 's/#/\n#/g'
-
-    elif iskitty; then
-        kitty +kitten icat --transfer-mode file --align left \
-              --place "${W}x${H}@${X}x${Y}" "$F" >/dev/tty
-
-    else
-        [ ! -e "$FIFO" ] && return 1
-        fifo_open "$FIFO" && {
-            path="$(printf '%s' "$F" | sed 's/\\/\\\\/g;s/"/\\"/g')"
-            printf '{ "action": "add", "identifier": "preview", "x": %d, "y": %d, "width": %d, "height": %d, "scaler": "contain", "scaling_position_x": 0.5, "scaling_position_y": 0.5, "path": "%s"}\n' "$X" "$Y" "$W" "$H" "$path" > "$FIFO"
-        }
-    fi
-}
-
-clear() {
-    [ "$PV_TYPE" != img ] && return 0
-
-    iskitty && {
-        kitty +kitten icat --clear --transfer-mode file
-        return
+ueberzug_add() {
+    handle_add_args "$@"
+    [ ! -e "$ueberzug_fifo" ] && return 1
+    fifo_open "$ueberzug_fifo" && {
+        path="$(printf '%s' "$file" | sed 's/\\/\\\\/g;s/"/\\"/g')"
+        printf '{ "action": "add", "identifier": "preview", "x": %d, "y": %d, "width": %d, "height": %d, "scaler": "contain", "scaling_position_x": 0.5, "scaling_position_y": 0.5, "path": "%s"}\n' "$x" "$y" "$w" "$h" "$path" > "$ueberzug_fifo"
     }
-
-    [ ! -e "$FIFO" ] && return 1
-    fifo_open "$FIFO" &&
-        printf '{"action": "remove", "identifier": "preview"}\n' > "$FIFO"
 }
 
-end() {
-    [ "$PV_TYPE" != img ] && return 0
-    clear
-    iskitty && return 0
-    [ -f "$FPID" ] &&
-        PID=$(cat "$FPID") &&
-        rm -f "$FPID" &&
+ueberzug_clear() {
+    [ ! -e "$ueberzug_fifo" ] && return 1
+    fifo_open "$ueberzug_fifo" &&
+        printf '{"action": "remove", "identifier": "preview"}\n' > "$ueberzug_fifo"
+}
+
+ueberzug_end() {
+    [ -f "$fpid" ] &&
+        PID=$(cat "$fpid") &&
+        rm -f "$fpid" &&
         pkill -TERM -P "$PID"
-    rm -f "$FIFO"
+    rm -f "$ueberzug_fifo"
+}
+
+# ==== interface kitty ====
+
+kitty_usable() {
+    iskitty
+}
+
+kitty_isalive() {
+    iskitty
+}
+
+kitty_listen() { true; }
+
+kitty_add() {
+    handle_add_args "$@"
+    kitty +kitten icat --transfer-mode file --align left \
+          --place "${w}x${h}@${x}x${y}" \
+          "$file" 2>/dev/null >/dev/tty
+}
+
+kitty_clear() {
+    kitty +kitten icat --clear --transfer-mode file
+}
+
+kitty_end() {
+    clear
+}
+
+# ==== interface sixel ====
+
+sixel_usable() {
+    exists chafa && [ -n "$DISPLAY" ] # && https://www.arewesixelyet.com
+}
+
+sixel_isalive() { true; }
+sixel_listen()  { true; }
+
+sixel_add() {
+    handle_add_args "$@"
+    chafa                \
+        -f sixel         \
+        --size "$w"x"$h" \
+        "$file" | sed 's/#/\n#/g'
+}
+
+sixel_clear() { true; }
+sixel_end()   { true; }
+
+# ==== interface ansi ====
+
+ansi_usable() {
+    exists chafa
+}
+
+ansi_isalive() { true; }
+ansi_listen()  { true; }
+
+ansi_add() {
+    handle_add_args "$@"
+    chafa --size "$w"x"$h" "$file"
+}
+
+ansi_clear() { true; }
+ansi_end()   { true; }
+
+# ==== interface ascii ====
+
+ascii_usable() {
+    exists jp2a
+}
+
+ascii_isalive() { true; }
+ascii_listen()  { true; }
+
+ascii_add() {
+    handle_add_args "$@"
+    if [ "$w" -gt "$h" ]; then
+        jp2a --width="$w" "$file"
+    else
+        jp2a --height="$h" "$file"
+    fi
+}
+
+ascii_clear() { true; }
+ascii_end()   { true; }
+
+# ==== main ====
+
+interface_init() {
+    case "$PV_TYPE" in
+        ueberzug|kitty|sixel|ansi|ascii) ;;
+        img|'')
+            if ueberzug_usable; then PV_TYPE=ueberzug
+            elif kitty_usable; then PV_TYPE=kitty
+            elif sixel_usable; then PV_TYPE=sixel
+            elif ansi_usable; then PV_TYPE=ansi
+            elif ascii_usable; then PV_TYPE=ascii
+            else return 1
+            fi ;;
+        text)
+            if ansi_usable; then PV_TYPE=ansi
+            elif ascii_usable; then PV_TYPE=ascii
+            else return 1
+            fi ;;
+        *) return 1 ;;
+    esac
+
+    usable=${PV_TYPE}_usable
+    isalive=${PV_TYPE}_isalive
+    listen=${PV_TYPE}_listen
+    add=${PV_TYPE}_add
+    clear=${PV_TYPE}_clear
+    end=${PV_TYPE}_end
 }
 
 usage() {
@@ -166,19 +273,10 @@ load_config() {
 
 main() {
     load_config
-
-    [ "$PV_IMAGE_ENABLED" = 0 ] || [ -f "$TOGGLE" ] &&
-        return 1
-
-    # if no display server
-    [ -n "$DISPLAY" ] || PV_TYPE=text
-
-    if [ "$PV_TYPE" = img ] && (iswayland || ! exists ueberzug) && ! iskitty; then
-        # if it's sixel, it will be left alone
-        PV_TYPE=text
-    fi
-
-    if [ "$PV_TYPE" != img ] && ! exists chafa; then
+    [ "$PV_IMAGE_ENABLED" = 0 ] || [ -f "$TOGGLE" ] && return 1
+    interface_init
+    if ! $usable; then
+        echo "$PV_TYPE is not usable" >&2
         return 1
     fi
 
@@ -189,20 +287,20 @@ main() {
     [ -n "$1" ] && shift
 
     # the fifo
-    FIFO="/tmp/stpvimgfifo$ID"
+    ueberzug_fifo="/tmp/stpvimgfifo$ID"
 
     # pid of this listener
-    FPID="$FIFO-pid"
+    fpid="${ueberzug_fifo}-pid"
 
     case "$CMD" in
-        --listen)  listen "$@" ;;
-        --add)     add    "$@" ;;
-        --clear)   clear       ;;
-        --end)     end         ;;
-        --alive)   isalive     ;;
-        --toggle)  toggle      ;;
-        --enabled) isenabled   ;;
-        *)         usage       ;;
+        --listen)  $listen "$@" ;;
+        --add)     $add    "$@" ;;
+        --clear)   $clear       ;;
+        --end)     $end         ;;
+        --alive)   $isalive     ;;
+        --toggle)  toggle       ;;
+        --enabled) isenabled    ;;
+        *)         usage        ;;
     esac
 }
 

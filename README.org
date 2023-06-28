@@ -5,9 +5,13 @@
 
 ** Dependencies
    One of the following is needed for image previews
-   | [[https://github.com/seebye/ueberzug][ueberzug]] | Used for image previews in X11                                          |
-   | [[https://sw.kovidgoyal.net/kitty/][kitty]]    | Kitty's [[https://sw.kovidgoyal.net/kitty/kittens/icat/][icat]] is used if available; the only option so far under wayland |
-   | [[https://github.com/hpjansson/chafa/][chafa]]    | Character-art previews in the terminal                                  |
+   | [[https://github.com/seebye/ueberzug][ueberzug]] | Used for image previews in X11     |
+   | [[https://sw.kovidgoyal.net/kitty/][kitty]]    | Kitty's [[https://sw.kovidgoyal.net/kitty/kittens/icat/][icat]] is used if available  |
+   | jp2a     | ASCII-art previews in the terminal |
+   | [[https://github.com/hpjansson/chafa/][chafa]]    | ANSI-art previews in the terminal  |
+   | [[https://github.com/hpjansson/chafa/][chafa]]    | Also used for [[https://www.arewesixelyet.com/][sixel]] *              |
+
+   * Note that sixel doesn't work well under tmux, lf, fzf, and many others. Forks exist like [[https://github.com/horriblename/lf][lf-sixel]], [[https://github.com/csdvrx/sixel-tmux][sixel-tmux]].
 
    The following programs. Note that the names are the command names and not the package names
 
@@ -82,7 +86,7 @@
    Options are listed below. Use any string for true, leave empty for false.
    #+BEGIN_SRC shell
      PV_IMAGE_ENABLED=1        # show image previews when possible
-     PV_TYPE=img               # (img or text) where text shows image previews in the terminal
+     PV_TYPE=img               # (ueberzug|kitty|sixel|ansi|ascii|img|text)
      PREFER_TEXT=              # prefer text over images when displaying documents
      DARK_DOCS=                # invert documents preview color in image previews
      SAFE=1                    # kill itself if needed (check main for details)
