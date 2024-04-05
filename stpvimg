@@ -34,11 +34,6 @@ exists() {
     command -v "$1" >/dev/null
 }
 
-iswayland() {
-    [ -n "$WAYLAND_DISPLAY" ] ||
-        [ "$XDG_SESSION_TYPE" = 'wayland' ]
-}
-
 iskitty() {
     [ -n "$KITTY_PID" ]
 }
@@ -87,7 +82,7 @@ base_end()     { true;  }
 # ==== interface ueberzug ====
 
 ueberzug_usable() {
-    exists ueberzug && ! iswayland && [ -n "$DISPLAY" ]
+    exists ueberzug && [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]
 }
 
 ueberzug_isalive() {
