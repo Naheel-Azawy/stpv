@@ -206,7 +206,7 @@ handle_now() {
             is_doc=1 ;;
     esac
     case "$file_extension_lower" in
-        pdf|stl) is_doc=1 ;;
+        pdf|stl|slx) is_doc=1 ;;
     esac
 
     # if text is preferred for documents
@@ -737,6 +737,28 @@ handle_drawio() {
                           "$file_path"           \
                           -o "$image_cache_path" \
                           >/dev/null &&
+                image_prepare || return
+        fi
+        image_show_pv
+    else
+        return "$RET_NO_MATCH"
+    fi
+}
+
+add handle_simulink unzip - unzip
+handle_simulink() {
+    [ "$file_extension_lower" = slx ] ||
+        return "$RET_NO_MATCH"
+
+    if image_needed; then
+        if ! image_cached; then
+            if ! unzip -l -- "$file_path" |
+                    grep -q metadata/thumbnail.png; then
+                # no thumbnail found
+                return "$RET_NO_MATCH"
+            fi
+            unzip -p -- "$file_path" metadata/thumbnail.png \
+                  > "$image_cache_path" &&
                 image_prepare || return
         fi
         image_show_pv
