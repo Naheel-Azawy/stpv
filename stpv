@@ -211,7 +211,7 @@ handle_now() {
             is_doc=1 ;;
     esac
     case "$file_extension_lower" in
-        pdf|stl|slx) is_doc=1 ;;
+        pdf|stl|slx|drawio) is_doc=1 ;;
     esac
 
     # if text is preferred for documents
