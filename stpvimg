@@ -22,7 +22,7 @@ TOGGLE="$HOME/.config/stpv/noimgpv"
 
 PV_IMAGE_ENABLED=1
 PV_TYPE=
-# img  := ueberzug|kitty|sixel
+# img  := gtrm|ueberzug|kitty|sixel
 # text := ansi|ascii
 
 ueberzug_fifo=
@@ -79,10 +79,32 @@ base_add()     { true;  }
 base_clear()   { true;  }
 base_end()     { true;  }
 
+# ==== interface gtrm ====
+
+gtrm_usable() {
+    exists gtrm-img && gtrm-img -q
+}
+
+gtrm_isalive() { true; }
+gtrm_listen()  { true; }
+
+gtrm_add() {
+    handle_add_args "$@"
+    gtrm-img -x "$x" -y "$y" -w "$w" -h "$h" -s fit -i "stpv$ID" "$file"
+}
+
+gtrm_clear() {
+    gtrm-img -C -i "stpv$ID"
+}
+
+gtrm_end() {
+    gtrm_clear
+}
+
 # ==== interface ueberzug ====
 
 ueberzug_usable() {
-    exists ueberzug && [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]
+    exists ueberzug && { [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; }
 }
 
 ueberzug_isalive() {
@@ -112,6 +134,10 @@ ueberzug_listen() {
 ueberzug_add() {
     handle_add_args "$@"
     [ ! -e "$ueberzug_fifo" ] && return 1
+    if [ "$x" -gt 1 ] && exists ueberzugpp; then
+        diff=$(($(tput cols) / 10))
+        x=$((x + diff))
+    fi
     fifo_open "$ueberzug_fifo" && {
         path="$(printf '%s' "$file" | sed 's/\\/\\\\/g;s/"/\\"/g')"
         printf '{ "action": "add", "identifier": "preview", "x": %d, "y": %d, "width": %d, "height": %d, "scaler": "fit_contain", "scaling_position_x": 0.5, "scaling_position_y": 0.5, "path": "%s"}\n' "$x" "$y" "$w" "$h" "$path" > "$ueberzug_fifo"
@@ -221,17 +247,18 @@ ascii_end()   { true; }
 
 interface_init() {
     case "$PV_TYPE" in
-        ueberzug|kitty|sixel|ansi|ascii) ;;
+        gtrm|ueberzug|kitty|sixel|ansi|ascii) ;;
         img|'')
-            if ueberzug_usable; then PV_TYPE=ueberzug
-            elif kitty_usable; then PV_TYPE=kitty
-            elif sixel_usable; then PV_TYPE=sixel
-            elif ansi_usable; then PV_TYPE=ansi
-            elif ascii_usable; then PV_TYPE=ascii
+            if       gtrm_usable; then PV_TYPE=gtrm
+            elif ueberzug_usable; then PV_TYPE=ueberzug
+            elif    kitty_usable; then PV_TYPE=kitty
+            elif    sixel_usable; then PV_TYPE=sixel
+            elif     ansi_usable; then PV_TYPE=ansi
+            elif    ascii_usable; then PV_TYPE=ascii
             else return 1
             fi ;;
         text)
-            if ansi_usable; then PV_TYPE=ansi
+            if    ansi_usable; then PV_TYPE=ansi
             elif ascii_usable; then PV_TYPE=ascii
             else return 1
             fi ;;
